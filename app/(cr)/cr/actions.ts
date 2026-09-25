@@ -79,25 +79,60 @@ export async function createClassSessionAction(prevState: any, formData: FormDat
     };
   }
 
-  // 3. Insert class session into database
-  const { error: insertErr } = await adminClient.from("class_sessions").insert({
-    batch_id: data.batchId,
-    subject_id: data.subjectId,
-    teacher_id: data.teacherId,
-    semester: batch.current_semester,
-    academic_year: batch.academic_year,
-    session_date: data.sessionDate,
-    start_time: data.startTime,
-    end_time: data.endTime,
-    students_present: data.studentsPresent,
-    topic_covered: data.topicCovered.trim(),
-    topic_planned: data.topicCovered.trim(), // Topic Planned and Covered topic must be identical
-    status: "submitted",
-    entered_by: user.id,
-  });
+  // Extract optional student attendance roster
+  const attendanceRaw = formData.get("attendanceData") as string | null;
+  let attendanceList: { studentId: string; status: "present" | "absent" | "late" | "od"; remarks?: string }[] = [];
+  if (attendanceRaw) {
+    try {
+      attendanceList = JSON.parse(attendanceRaw);
+    } catch {
+      // ignore
+    }
+  }
 
-  if (insertErr) {
-    return { success: false, error: insertErr.message || "Failed to save class session." };
+  // 3. Insert class session into database
+  const { data: newSession, error: insertErr } = await adminClient
+    .from("class_sessions")
+    .insert({
+      batch_id: data.batchId,
+      subject_id: data.subjectId,
+      teacher_id: data.teacherId,
+      semester: batch.current_semester,
+      academic_year: batch.academic_year,
+      session_date: data.sessionDate,
+      start_time: data.startTime,
+      end_time: data.endTime,
+      students_present: data.studentsPresent,
+      topic_covered: data.topicCovered.trim(),
+      topic_planned: data.topicCovered.trim(), // Topic Planned and Covered topic must be identical
+      status: "submitted",
+      entered_by: user.id,
+    })
+    .select("id")
+    .single();
+
+  if (insertErr || !newSession) {
+    return { success: false, error: insertErr?.message || "Failed to save class session." };
+  }
+
+  // 4. Save attendance records if provided
+  if (attendanceList.length > 0) {
+    const now = new Date().toISOString();
+    const rows = attendanceList.map((a) => ({
+      session_id: newSession.id,
+      student_id: a.studentId,
+      status: a.status,
+      remarks: a.remarks || null,
+      marked_by: user.id,
+      marked_at: now,
+      updated_by: user.id,
+      updated_at: now,
+    }));
+    try {
+      await adminClient.from("session_attendance").insert(rows);
+    } catch {
+      // If table not migrated yet, continue without failing session creation
+    }
   }
 
   revalidatePath("/cr/log");
@@ -109,8 +144,9 @@ export async function createClassSessionAction(prevState: any, formData: FormDat
   revalidatePath("/summaries");
   revalidatePath("/calendar");
   revalidatePath("/admin/logs");
+  revalidatePath("/attendance");
 
-  return { success: true, message: "Class session logged successfully!" };
+  return { success: true, message: "Class session and attendance recorded successfully!" };
 }
 
 export async function updateClassSessionAction(prevState: any, formData: FormData) {

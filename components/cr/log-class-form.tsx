@@ -1,10 +1,26 @@
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState, useActionState, useEffect } from "react";
 import Link from "next/link";
 import { createClassSessionAction } from "@/app/(cr)/cr/actions";
+import { getBatchRosterAction } from "@/app/actions/attendance";
 import { CRBatchInfo, CRAssignment, CRSubjectInfo, CRTeacherInfo } from "@/lib/data/cr";
-import { BookOpen, User, Clock, Users, FileText, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
+import {
+  BookOpen,
+  User,
+  Clock,
+  Users,
+  FileText,
+  CheckCircle2,
+  AlertCircle,
+  ArrowRight,
+  ChevronDown,
+  ChevronUp,
+  Beaker,
+  Check,
+  X,
+  Loader2,
+} from "lucide-react";
 import { format, subDays } from "date-fns";
 
 interface Props {
@@ -67,6 +83,73 @@ export function LogClassForm({ batch, assignments, subjects, teachers }: Props) 
   const [endTime, setEndTime] = useState("10:00");
   const [studentsPresent, setStudentsPresent] = useState<number | string>(batch.class_strength);
   const [topicCovered, setTopicCovered] = useState("");
+
+  // Attendance Roster State
+  const [roster, setRoster] = useState<{
+    studentId: string;
+    rollNumber: string;
+    fullName: string;
+    section: string;
+    practicalGroup: string | null;
+    status: "present" | "absent" | "late" | "od";
+  }[]>([]);
+  const [isRosterLoading, setIsRosterLoading] = useState(false);
+  const [isRosterOpen, setIsRosterOpen] = useState(false);
+  const [rosterInfo, setRosterInfo] = useState<{
+    isPractical: boolean;
+    group: string | null;
+    section: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    if (batch?.id) {
+      setIsRosterLoading(true);
+      getBatchRosterAction(batch.id).then((res) => {
+        if (!mounted) return;
+        setIsRosterLoading(false);
+        if (res.success && res.roster) {
+          setRosterInfo({
+            isPractical: res.roster.isPractical,
+            group: res.roster.group,
+            section: res.roster.section,
+          });
+          if (res.roster.students.length > 0) {
+            const initialList = res.roster.students.map((s) => ({
+              studentId: s.id,
+              rollNumber: s.rollNumber,
+              fullName: s.fullName,
+              section: s.section,
+              practicalGroup: s.practicalGroup,
+              status: "present" as const,
+            }));
+            setRoster(initialList);
+            setStudentsPresent(initialList.length);
+          }
+        }
+      });
+    }
+    return () => {
+      mounted = false;
+    };
+  }, [batch?.id]);
+
+  const toggleStudentStatus = (studentId: string, newStatus: "present" | "absent" | "late" | "od") => {
+    setRoster((prev) => {
+      const updated = prev.map((s) => (s.studentId === studentId ? { ...s, status: newStatus } : s));
+      const presentCount = updated.filter((s) => s.status === "present" || s.status === "late").length;
+      setStudentsPresent(presentCount);
+      return updated;
+    });
+  };
+
+  const handleMarkAllRoster = (status: "present" | "absent") => {
+    setRoster((prev) => {
+      const updated = prev.map((s) => ({ ...s, status }));
+      setStudentsPresent(status === "present" ? updated.length : 0);
+      return updated;
+    });
+  };
 
   const designatedAssignment = assignments.find((a) => a.subjectId === selectedSubjectId);
   const selectedTeacher = availableTeachers.find((t) => t.id === selectedTeacherId);
@@ -325,6 +408,143 @@ export function LogClassForm({ batch, assignments, subjects, teachers }: Props) 
               / {batch.class_strength} students
             </span>
           </div>
+
+          {/* Interactive Attendance Roll Section */}
+          {roster.length > 0 && (
+            <div className="mt-3 bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-xs">
+              <div
+                onClick={() => setIsRosterOpen(!isRosterOpen)}
+                className="p-3 bg-slate-50/80 hover:bg-slate-100/70 transition-colors cursor-pointer flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
+                    <Users className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block leading-tight">
+                      Take Class Attendance (Roll Call)
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      {rosterInfo?.isPractical ? (
+                        <span className="text-amber-700 font-semibold inline-flex items-center gap-1">
+                          <Beaker className="w-3 h-3" />
+                          Practical Lab Group {rosterInfo.group} ({roster.length} students)
+                        </span>
+                      ) : (
+                        <span className="text-cyan-700 font-semibold inline-flex items-center gap-1">
+                          <BookOpen className="w-3 h-3" />
+                          Theory {rosterInfo?.section || "Section"} ({roster.length} students)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    {roster.filter((s) => s.status === "present" || s.status === "late").length} Present
+                  </span>
+                  {roster.filter((s) => s.status === "absent").length > 0 && (
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
+                      {roster.filter((s) => s.status === "absent").length} Absent
+                    </span>
+                  )}
+                  {isRosterOpen ? (
+                    <ChevronUp className="w-4 h-4 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  )}
+                </div>
+              </div>
+
+              {isRosterOpen && (
+                <div className="p-3 border-t border-slate-200/80 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-slate-500">
+                      Tap any student to mark as Absent or Late:
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleMarkAllRoster("present")}
+                        className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-md transition-colors"
+                      >
+                        All Present
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMarkAllRoster("absent")}
+                        className="text-[10px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2 py-1 rounded-md transition-colors"
+                      >
+                        All Absent
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 rounded-xl border border-slate-200/60 bg-slate-50/30">
+                    {roster.map((student) => (
+                      <div
+                        key={student.studentId}
+                        className="p-2 flex items-center justify-between gap-2 hover:bg-white transition-colors"
+                      >
+                        <div className="min-w-0 flex items-center gap-2">
+                          <span className="font-mono text-[10px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">
+                            {student.rollNumber}
+                          </span>
+                          <span className="text-xs font-medium text-slate-900 truncate">
+                            {student.fullName}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => toggleStudentStatus(student.studentId, "present")}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+                              student.status === "present"
+                                ? "bg-emerald-600 text-white border-emerald-600"
+                                : "bg-white text-slate-500 border-slate-200 hover:bg-emerald-50"
+                            }`}
+                          >
+                            P
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleStudentStatus(student.studentId, "absent")}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+                              student.status === "absent"
+                                ? "bg-red-600 text-white border-red-600"
+                                : "bg-white text-slate-500 border-slate-200 hover:bg-red-50"
+                            }`}
+                          >
+                            A
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleStudentStatus(student.studentId, "late")}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+                              student.status === "late"
+                                ? "bg-amber-500 text-white border-amber-500"
+                                : "bg-white text-slate-500 border-slate-200 hover:bg-amber-50"
+                            }`}
+                          >
+                            L
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Hidden JSON input to submit attendance records */}
+          <input
+            type="hidden"
+            name="attendanceData"
+            value={roster.length > 0 ? JSON.stringify(roster) : ""}
+          />
         </div>
 
         {/* 5. Topic Covered */}

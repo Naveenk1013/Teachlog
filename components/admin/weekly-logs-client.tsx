@@ -11,6 +11,7 @@ import {
   quickUpdateSessionAction,
   quickToggleVerifyAction,
 } from "@/app/(admin)/admin/actions";
+import { SessionAttendanceModal } from "@/components/attendance/session-attendance-modal";
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -97,6 +98,9 @@ export function WeeklyLogsClient({
   const [docxBatchId, setDocxBatchId] = useState(currentBatchId || data.batches[0]?.id || "");
   const [docxSubjectId, setDocxSubjectId] = useState(currentSubjectId || data.subjects[0]?.id || "");
   const [docxTeacherId, setDocxTeacherId] = useState(currentTeacherId || data.teachers[0]?.id || "");
+
+  // Attendance Modal state
+  const [attendanceModalSession, setAttendanceModalSession] = useState<WeeklyLogSessionItem | null>(null);
 
   // Week navigation
   const navigateWeek = (direction: "prev" | "next" | "current") => {
@@ -673,6 +677,16 @@ export function WeeklyLogsClient({
                           {/* Right Column: Actions */}
                           <div className="flex lg:flex-col items-center gap-2 pt-2 lg:pt-0">
                             <button
+                              type="button"
+                              onClick={() => setAttendanceModalSession(session)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800/80 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-xs font-semibold transition-colors"
+                              title="View & Edit Student Attendance Roster"
+                            >
+                              <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                              Attendance
+                            </button>
+
+                            <button
                               onClick={() => openEditModal(session)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors"
                             >
@@ -1097,6 +1111,29 @@ export function WeeklyLogsClient({
             </div>
           </div>
         </div>
+      )}
+
+      {/* SESSION ATTENDANCE MODAL */}
+      {attendanceModalSession && (
+        <SessionAttendanceModal
+          isOpen={true}
+          onClose={() => setAttendanceModalSession(null)}
+          sessionId={attendanceModalSession.id}
+          batchId={attendanceModalSession.batchId}
+          batchName={attendanceModalSession.batchName}
+          sessionTitle={attendanceModalSession.subjectName}
+          sessionDate={attendanceModalSession.sessionDate}
+          sessionTime={`${attendanceModalSession.startTime.slice(0, 5)} - ${attendanceModalSession.endTime.slice(0, 5)}`}
+          onSaved={(newPresentCount) => {
+            setSessions((prev) =>
+              prev.map((s) =>
+                s.id === attendanceModalSession.id
+                  ? { ...s, studentsPresent: newPresentCount }
+                  : s
+              )
+            );
+          }}
+        />
       )}
     </div>
   );

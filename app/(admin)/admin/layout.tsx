@@ -39,6 +39,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                 Weekly Logs
               </Link>
               <Link
+                href="/admin/attendance"
+                className="px-2.5 py-1.5 rounded-lg font-medium text-emerald-300 hover:text-white hover:bg-slate-800 flex items-center gap-1.5 transition-colors"
+              >
+                <UserCheck className="w-4 h-4 text-emerald-400" />
+                Attendance
+              </Link>
+              <Link
                 href="/admin/teachers"
                 className="px-2.5 py-1.5 rounded-lg font-medium text-slate-300 hover:text-white hover:bg-slate-800 flex items-center gap-1.5 transition-colors"
               >

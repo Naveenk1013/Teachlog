@@ -51,8 +51,8 @@ export default async function CRLayout({ children }: { children: ReactNode }) {
           </form>
         </div>
 
-        {/* Tab Navigation (Log Class vs Weekly Logs vs History vs Calendar) */}
-        <div className="max-w-4xl mx-auto mt-2.5 pt-2 border-t border-slate-100 grid grid-cols-4 gap-1 sm:gap-2">
+        {/* Tab Navigation (Log Class vs Weekly Logs vs History vs Calendar vs Attendance) */}
+        <div className="max-w-4xl mx-auto mt-2.5 pt-2 border-t border-slate-100 grid grid-cols-5 gap-1 sm:gap-2">
           <Link
             href="/cr/log"
             className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-medium text-slate-700 hover:text-indigo-600 hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all text-center"
@@ -73,6 +73,13 @@ export default async function CRLayout({ children }: { children: ReactNode }) {
           >
             <History className="w-3.5 h-3.5 text-slate-500 shrink-0" />
             <span className="truncate">My Entries</span>
+          </Link>
+          <Link
+            href="/cr/attendance"
+            className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-medium text-slate-700 hover:text-emerald-600 hover:bg-emerald-50/50 border border-transparent hover:border-emerald-100 transition-all text-center"
+          >
+            <Users className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="truncate">Attendance</span>
           </Link>
           <Link
             href="/cr/calendar"

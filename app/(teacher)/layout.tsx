@@ -11,6 +11,7 @@ import {
   FileSpreadsheet,
   LogOut,
   User,
+  UserCheck,
 } from "lucide-react";
 
 export default async function TeacherLayout({ children }: { children: ReactNode }) {
@@ -50,6 +51,13 @@ export default async function TeacherLayout({ children }: { children: ReactNode 
               >
                 <CalendarClock className="w-4 h-4 text-blue-600" />
                 Weekly Logs &amp; Quick Editor
+              </Link>
+              <Link
+                href="/attendance"
+                className="px-3 py-2 rounded-lg text-sm font-semibold text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50/70 flex items-center gap-1.5 transition-colors"
+              >
+                <UserCheck className="w-4 h-4 text-emerald-600" />
+                Attendance
               </Link>
               <Link
                 href="/calendar"

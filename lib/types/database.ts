@@ -128,3 +128,41 @@ export interface AuditLog {
   new_data: Record<string, unknown> | null;
   created_at: string;
 }
+
+export type AttendanceStatus = "present" | "absent" | "late" | "od";
+
+export interface Student {
+  id: string;
+  roll_number: string;
+  full_name: string;
+  academic_year: string;
+  semester: number;
+  section: string;
+  practical_group: string | null;
+  batch_id: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface SessionAttendance {
+  id: string;
+  session_id: string;
+  student_id: string;
+  status: AttendanceStatus;
+  remarks: string | null;
+  marked_by: string;
+  marked_at: string;
+  updated_by: string | null;
+  updated_at: string;
+}
+
+export interface StudentAttendanceRecord {
+  studentId: string;
+  rollNumber: string;
+  fullName: string;
+  section: string;
+  practicalGroup: string | null;
+  status: AttendanceStatus;
+  remarks?: string | null;
+}
+

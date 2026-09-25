@@ -2,7 +2,11 @@
 
 import { useState, useId } from "react";
 import { BatchItem, ProgrammeItem } from "@/lib/data/admin";
-import { createBatchAction, createMultipleBatchesAction } from "@/app/(admin)/admin/actions";
+import {
+  createBatchAction,
+  createMultipleBatchesAction,
+  deleteBatchAction,
+} from "@/app/(admin)/admin/actions";
 import {
   Users,
   Plus,
@@ -18,6 +22,7 @@ import {
   Square,
   Beaker,
   BookOpen,
+  Trash2,
 } from "lucide-react";
 
 function parseBatchSectionAndGroup(name: string) {
@@ -302,6 +307,23 @@ export function BatchesClient({
     }
   }
 
+  async function handleDeleteBatch(batch: BatchItem) {
+    if (
+      !confirm(
+        `Are you sure you want to permanently delete cohort "${batch.name}"?\n\nThis will remove this batch, related teaching assignments, CR authorisations, academic events, and linked class sessions. This action CANNOT be undone.`
+      )
+    ) {
+      return;
+    }
+    const res = await deleteBatchAction(batch.id);
+    if (res.success) {
+      setSuccessMessage(`Cohort "${batch.name}" was permanently deleted.`);
+      setBatches((prev) => prev.filter((b) => b.id !== batch.id));
+    } else {
+      alert(res.error || "Failed to delete cohort/batch.");
+    }
+  }
+
   // Handler for Multi Batch Submit
   async function handleCreateMultiBatches(e: React.FormEvent) {
     e.preventDefault();
@@ -445,12 +467,13 @@ export function BatchesClient({
                 <th className="py-3 px-4 text-center">Class Strength</th>
                 <th className="py-3 px-4">Semester Start</th>
                 <th className="py-3 px-4 text-center">Status</th>
+                <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredBatches.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-10 text-slate-400">
+                  <td colSpan={9} className="text-center py-10 text-slate-400">
                     No batches or sections found matching your filters.
                   </td>
                 </tr>
@@ -549,6 +572,18 @@ export function BatchesClient({
                         ) : (
                           <span className="text-slate-400 text-[11px]">Archived</span>
                         )}
+                      </td>
+
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteBatch(b)}
+                          className="text-xs font-semibold text-red-600 hover:text-red-800 hover:bg-red-50 border border-red-200 px-2.5 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1"
+                          title="Permanently Delete Cohort"
+                        >
+                          <Trash2 className="w-3 h-3 text-red-600" />
+                          <span>Delete</span>
+                        </button>
                       </td>
                     </tr>
                   );

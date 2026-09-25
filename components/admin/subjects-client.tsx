@@ -6,6 +6,7 @@ import {
   createSubjectAction,
   addSyllabusTopicAction,
   deleteSyllabusTopicAction,
+  deleteSubjectAction,
 } from "@/app/(admin)/admin/actions";
 import {
   BookOpen,
@@ -119,6 +120,23 @@ export function SubjectsClient({
       setActiveTopics([]);
     } finally {
       setIsSyllabusLoading(false);
+    }
+  }
+
+  async function handleDeleteSubject(subject: SubjectItem) {
+    if (
+      !confirm(
+        `Are you sure you want to permanently delete subject "${subject.name}" (${subject.code || "No Code"})?\n\nThis will remove this subject, its syllabus topics, teaching assignments, and linked class sessions. This action CANNOT be undone.`
+      )
+    ) {
+      return;
+    }
+    const res = await deleteSubjectAction(subject.id);
+    if (res.success) {
+      setSuccessMessage(`Subject "${subject.name}" was permanently deleted.`);
+      setSubjects((prev) => prev.filter((s) => s.id !== subject.id));
+    } else {
+      alert(res.error || "Failed to delete subject.");
     }
   }
 
@@ -282,14 +300,25 @@ export function SubjectsClient({
                         {sub.topicCount} topic{sub.topicCount === 1 ? "" : "s"}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => openSyllabusModal(sub)}
-                        className="text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1.5"
-                      >
-                        <ListOrdered className="w-3.5 h-3.5" />
-                        <span>Syllabus Topics</span>
-                      </button>
+                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => openSyllabusModal(sub)}
+                          className="text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1.5"
+                        >
+                          <ListOrdered className="w-3.5 h-3.5" />
+                          <span>Syllabus Topics</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSubject(sub)}
+                          className="text-xs font-medium text-red-600 hover:text-red-800 hover:bg-red-50 border border-red-200 px-2.5 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1"
+                          title="Permanently Delete Subject"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

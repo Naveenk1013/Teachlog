@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { TeacherItem } from "@/lib/data/admin";
-import { createTeacherAction, toggleTeacherStatusAction, updateUserCredentialsAction } from "@/app/(admin)/admin/actions";
+import {
+  createTeacherAction,
+  toggleTeacherStatusAction,
+  updateUserCredentialsAction,
+  deleteTeacherAction,
+} from "@/app/(admin)/admin/actions";
 import {
   Users,
   UserPlus,
@@ -16,6 +21,7 @@ import {
   AlertCircle,
   Lock,
   Key,
+  Trash2,
 } from "lucide-react";
 
 const DEPARTMENTS = [
@@ -150,6 +156,23 @@ export function TeachersClient({ initialTeachers }: { initialTeachers: TeacherIt
       );
     } else {
       alert(res.error || "Failed to update status");
+    }
+  }
+
+  async function handleDeleteTeacher(teacher: TeacherItem) {
+    if (
+      !confirm(
+        `Are you sure you want to permanently delete faculty member "${teacher.fullName}" (${teacher.email})?\n\nThis will remove their account, allocations, and associated data. This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    const res = await deleteTeacherAction(teacher.id);
+    if (res.success) {
+      setSuccessMessage(`Faculty member "${teacher.fullName}" was permanently deleted.`);
+      setTeachers((prev) => prev.filter((t) => t.id !== teacher.id));
+    } else {
+      alert(res.error || "Failed to delete teacher account.");
     }
   }
 
@@ -294,11 +317,20 @@ export function TeachersClient({ initialTeachers }: { initialTeachers: TeacherIt
                           onClick={() => handleToggleStatus(teacher.id, teacher.isActive)}
                           className={`text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors ${
                             teacher.isActive
-                              ? "text-red-600 hover:bg-red-50 border-red-200"
+                              ? "text-amber-700 hover:bg-amber-50 border-amber-200"
                               : "text-emerald-600 hover:bg-emerald-50 border-emerald-200"
                           }`}
                         >
                           {teacher.isActive ? "Deactivate" : "Activate"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTeacher(teacher)}
+                          className="text-xs font-medium px-2.5 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors flex items-center gap-1"
+                          title="Permanently Delete Teacher"
+                        >
+                          <Trash2 className="w-3 h-3 text-red-600" />
+                          <span>Delete</span>
                         </button>
                       </div>
                     </td>

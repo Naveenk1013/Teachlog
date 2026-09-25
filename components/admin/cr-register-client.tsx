@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { CRAuthorisationItem } from "@/lib/data/admin";
 import {
   grantCRAuthorisationAction,
   revokeCRAuthorisationAction,
   createStudentAndGrantCRAction,
   updateUserCredentialsAction,
+  deleteCRAction,
 } from "@/app/(admin)/admin/actions";
 import {
   UserCheck,
@@ -24,6 +26,7 @@ import {
   Mail,
   Lock,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
@@ -38,6 +41,7 @@ export function CRRegisterClient({
   availableStudents,
   availableBatches,
 }: CRRegisterClientProps) {
+  const router = useRouter();
   const [isGrantModalOpen, setIsGrantModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"new" | "existing">("new");
   const [revokeTarget, setRevokeTarget] = useState<CRAuthorisationItem | null>(null);
@@ -176,6 +180,27 @@ export function CRRegisterClient({
         setSuccessMessage(`CR Access revoked for ${revokeTarget.crName}.`);
         setRevokeTarget(null);
         setRevokeReason("");
+      }
+    });
+  };
+
+  const handleDeleteCR = (auth: CRAuthorisationItem) => {
+    if (
+      !confirm(
+        `Are you sure you want to permanently delete Class Representative "${auth.crName}" (${auth.crEmail || "Student"})?\n\nThis will remove their appointment, student profile, authentication login, and any session logs entered by them. This action CANNOT be undone.`
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    setSuccessMessage(null);
+    startTransition(async () => {
+      const res = await deleteCRAction(auth.id, auth.crId);
+      if (!res.success) {
+        setError(res.error || "Failed to delete Class Representative.");
+      } else {
+        setSuccessMessage(`Class Representative "${auth.crName}" was permanently deleted.`);
+        router.refresh();
       }
     });
   };
@@ -342,11 +367,20 @@ export function CRRegisterClient({
                                 setError(null);
                                 setRevokeTarget(auth);
                               }}
-                              className="text-xs font-semibold text-red-600 hover:text-red-800 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors"
+                              className="text-xs font-semibold text-amber-700 hover:text-amber-900 hover:bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-lg transition-colors"
                             >
                               Revoke Access
                             </button>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCR(auth)}
+                            className="text-xs font-semibold text-red-600 hover:text-red-800 hover:bg-red-50 border border-red-200 px-2.5 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1"
+                            title="Permanently Delete Class Representative"
+                          >
+                            <Trash2 className="w-3 h-3 text-red-600" />
+                            <span>Delete</span>
+                          </button>
                         </div>
                       </td>
                     </tr>

@@ -458,6 +458,246 @@ export async function updateUserCredentialsAction(data: {
   }
 }
 
+export async function deleteTeacherAction(teacherId: string) {
+  const admin = await getCurrentTeacherUser();
+  if (!admin || admin.role !== "admin") {
+    return { success: false, error: "Unauthorized. Administrator privileges required." };
+  }
+
+  if (admin.id === teacherId) {
+    return { success: false, error: "You cannot delete your own administrator account." };
+  }
+
+  const adminClient = createAdminClient();
+
+  try {
+    // 1. Remove teaching assignments
+    await adminClient.from("teaching_assignments").delete().eq("teacher_id", teacherId);
+
+    // 2. Remove weekly summaries
+    await adminClient.from("weekly_summaries").delete().eq("teacher_id", teacherId);
+
+    // 3. Remove sessions taught or entered by this teacher
+    const { data: sessions } = await adminClient
+      .from("class_sessions")
+      .select("id")
+      .or(`teacher_id.eq.${teacherId},entered_by.eq.${teacherId}`);
+
+    if (sessions && sessions.length > 0) {
+      const sessionIds = sessions.map((s) => s.id);
+      await adminClient.from("session_syllabus_topics").delete().in("session_id", sessionIds);
+      await adminClient.from("class_sessions").delete().in("id", sessionIds);
+    }
+
+    // 4. Remove report exports
+    await adminClient.from("report_exports").delete().eq("generated_by", teacherId);
+
+    // 5. Delete profile
+    await adminClient.from("profiles").delete().eq("id", teacherId);
+
+    // 6. Delete Supabase Auth user
+    try {
+      await adminClient.auth.admin.deleteUser(teacherId);
+    } catch {
+      // Ignore if auth user doesn't exist
+    }
+
+    // 7. Write to audit_logs
+    try {
+      await adminClient.from("audit_logs").insert({
+        actor_id: admin.id,
+        action: "TEACHER_DELETED",
+        entity: "profiles",
+        entity_id: teacherId,
+      });
+    } catch {
+      // Ignore audit failure
+    }
+
+    revalidatePath("/admin/teachers");
+    revalidatePath("/admin/allocations");
+    revalidatePath("/admin");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to delete teacher account." };
+  }
+}
+
+export async function deleteCRAction(crAuthId: string, studentId: string) {
+  const admin = await getCurrentTeacherUser();
+  if (!admin || admin.role !== "admin") {
+    return { success: false, error: "Unauthorized. Administrator privileges required." };
+  }
+
+  if (admin.id === studentId) {
+    return { success: false, error: "You cannot delete your own account." };
+  }
+
+  const adminClient = createAdminClient();
+
+  try {
+    // 1. Delete CR authorisations
+    if (crAuthId) {
+      await adminClient.from("cr_authorisations").delete().eq("id", crAuthId);
+    }
+    if (studentId) {
+      await adminClient.from("cr_authorisations").delete().eq("cr_id", studentId);
+
+      // 2. Remove sessions entered by this CR
+      const { data: sessions } = await adminClient
+        .from("class_sessions")
+        .select("id")
+        .eq("entered_by", studentId);
+
+      if (sessions && sessions.length > 0) {
+        const sessionIds = sessions.map((s) => s.id);
+        await adminClient.from("session_syllabus_topics").delete().in("session_id", sessionIds);
+        await adminClient.from("class_sessions").delete().in("id", sessionIds);
+      }
+
+      // 3. Delete profile
+      await adminClient.from("profiles").delete().eq("id", studentId);
+
+      // 4. Delete Auth user
+      try {
+        await adminClient.auth.admin.deleteUser(studentId);
+      } catch {
+        // Ignore
+      }
+    }
+
+    // 5. Write to audit_logs
+    try {
+      await adminClient.from("audit_logs").insert({
+        actor_id: admin.id,
+        action: "CR_DELETED",
+        entity: "cr_authorisations",
+        entity_id: crAuthId || studentId,
+      });
+    } catch {
+      // Ignore
+    }
+
+    revalidatePath("/admin/crs");
+    revalidatePath("/admin");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to delete Class Representative." };
+  }
+}
+
+export async function deleteBatchAction(batchId: string) {
+  const admin = await getCurrentTeacherUser();
+  if (!admin || admin.role !== "admin") {
+    return { success: false, error: "Unauthorized. Administrator privileges required." };
+  }
+
+  const adminClient = createAdminClient();
+
+  try {
+    // 1. Remove related assignments, authorisations, summaries
+    await adminClient.from("teaching_assignments").delete().eq("batch_id", batchId);
+    await adminClient.from("cr_authorisations").delete().eq("batch_id", batchId);
+    await adminClient.from("weekly_summaries").delete().eq("batch_id", batchId);
+
+    // 2. Remove sessions and linked topics
+    const { data: sessions } = await adminClient
+      .from("class_sessions")
+      .select("id")
+      .eq("batch_id", batchId);
+
+    if (sessions && sessions.length > 0) {
+      const sessionIds = sessions.map((s) => s.id);
+      await adminClient.from("session_syllabus_topics").delete().in("session_id", sessionIds);
+      await adminClient.from("class_sessions").delete().in("id", sessionIds);
+    }
+
+    // 3. Remove events
+    await adminClient.from("academic_events").delete().eq("batch_id", batchId);
+
+    // 4. Delete the batch
+    const { error } = await adminClient.from("batches").delete().eq("id", batchId);
+    if (error) {
+      return { success: false, error: "Failed to delete cohort/batch: " + error.message };
+    }
+
+    // 5. Audit log
+    try {
+      await adminClient.from("audit_logs").insert({
+        actor_id: admin.id,
+        action: "BATCH_DELETED",
+        entity: "batches",
+        entity_id: batchId,
+      });
+    } catch {
+      // Ignore
+    }
+
+    revalidatePath("/admin/batches");
+    revalidatePath("/admin/crs");
+    revalidatePath("/admin/allocations");
+    revalidatePath("/admin");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to delete batch." };
+  }
+}
+
+export async function deleteSubjectAction(subjectId: string) {
+  const admin = await getCurrentTeacherUser();
+  if (!admin || admin.role !== "admin") {
+    return { success: false, error: "Unauthorized. Administrator privileges required." };
+  }
+
+  const adminClient = createAdminClient();
+
+  try {
+    // 1. Remove teaching allocations and summaries
+    await adminClient.from("teaching_assignments").delete().eq("subject_id", subjectId);
+    await adminClient.from("weekly_summaries").delete().eq("subject_id", subjectId);
+
+    // 2. Remove class sessions & topics
+    const { data: sessions } = await adminClient
+      .from("class_sessions")
+      .select("id")
+      .eq("subject_id", subjectId);
+
+    if (sessions && sessions.length > 0) {
+      const sessionIds = sessions.map((s) => s.id);
+      await adminClient.from("session_syllabus_topics").delete().in("session_id", sessionIds);
+      await adminClient.from("class_sessions").delete().in("id", sessionIds);
+    }
+
+    // 3. Remove syllabus topics
+    await adminClient.from("syllabus_topics").delete().eq("subject_id", subjectId);
+
+    // 4. Delete subject
+    const { error } = await adminClient.from("subjects").delete().eq("id", subjectId);
+    if (error) {
+      return { success: false, error: "Failed to delete subject: " + error.message };
+    }
+
+    // 5. Audit log
+    try {
+      await adminClient.from("audit_logs").insert({
+        actor_id: admin.id,
+        action: "SUBJECT_DELETED",
+        entity: "subjects",
+        entity_id: subjectId,
+      });
+    } catch {
+      // Ignore
+    }
+
+    revalidatePath("/admin/subjects");
+    revalidatePath("/admin/allocations");
+    revalidatePath("/admin");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to delete subject." };
+  }
+}
+
 // ─────────────────────────────────────────────
 // Subject & Syllabus Management Actions
 // ─────────────────────────────────────────────

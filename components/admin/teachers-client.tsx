@@ -1,8 +1,6 @@
-"use client";
-
 import { useState } from "react";
 import { TeacherItem } from "@/lib/data/admin";
-import { createTeacherAction, toggleTeacherStatusAction } from "@/app/(admin)/admin/actions";
+import { createTeacherAction, toggleTeacherStatusAction, updateUserCredentialsAction } from "@/app/(admin)/admin/actions";
 import {
   Users,
   UserPlus,
@@ -15,6 +13,7 @@ import {
   Loader2,
   AlertCircle,
   Lock,
+  Key,
 } from "lucide-react";
 
 const DEPARTMENTS = [
@@ -36,11 +35,61 @@ export function TeachersClient({ initialTeachers }: { initialTeachers: TeacherIt
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Form State
+  // Form State (Add)
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState(DEPARTMENTS[0]);
   const [password, setPassword] = useState("password123");
+
+  // Edit Credentials State
+  const [editingTeacher, setEditingTeacher] = useState<TeacherItem | null>(null);
+  const [editFullName, setEditFullName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editDepartment, setEditDepartment] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [isEditLoading, setIsEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const openEditModal = (t: TeacherItem) => {
+    setEditingTeacher(t);
+    setEditFullName(t.fullName);
+    setEditEmail(t.email);
+    setEditDepartment(t.department || DEPARTMENTS[0]);
+    setEditPassword("");
+    setEditError(null);
+  };
+
+  async function handleUpdateCredentials(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingTeacher) return;
+
+    setIsEditLoading(true);
+    setEditError(null);
+
+    const res = await updateUserCredentialsAction({
+      userId: editingTeacher.id,
+      fullName: editFullName,
+      email: editEmail,
+      department: editDepartment,
+      password: editPassword.trim() ? editPassword : undefined,
+    });
+
+    setIsEditLoading(false);
+
+    if (res.success) {
+      setSuccessMessage(`Credentials updated successfully for "${editFullName}"!`);
+      setTeachers((prev) =>
+        prev.map((t) =>
+          t.id === editingTeacher.id
+            ? { ...t, fullName: editFullName, email: editEmail, department: editDepartment }
+            : t
+        )
+      );
+      setEditingTeacher(null);
+    } else {
+      setEditError(res.error || "Failed to update credentials.");
+    }
+  }
 
   const filteredTeachers = teachers.filter((t) => {
     const matchesSearch =
@@ -229,16 +278,27 @@ export function TeachersClient({ initialTeachers }: { initialTeachers: TeacherIt
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => handleToggleStatus(teacher.id, teacher.isActive)}
-                        className={`text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors ${
-                          teacher.isActive
-                            ? "text-red-600 hover:bg-red-50 border-red-200"
-                            : "text-emerald-600 hover:bg-emerald-50 border-emerald-200"
-                        }`}
-                      >
-                        {teacher.isActive ? "Deactivate" : "Activate"}
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(teacher)}
+                          className="text-xs font-medium px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 transition-colors flex items-center gap-1"
+                        >
+                          <Key className="w-3 h-3 text-indigo-600" />
+                          <span>Edit Credentials</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStatus(teacher.id, teacher.isActive)}
+                          className={`text-xs font-medium px-2.5 py-1 rounded-lg border transition-colors ${
+                            teacher.isActive
+                              ? "text-red-600 hover:bg-red-50 border-red-200"
+                              : "text-emerald-600 hover:bg-emerald-50 border-emerald-200"
+                          }`}
+                        >
+                          {teacher.isActive ? "Deactivate" : "Activate"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -365,6 +425,125 @@ export function TeachersClient({ initialTeachers }: { initialTeachers: TeacherIt
                     </>
                   ) : (
                     "Save & Provision"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Credentials Modal */}
+      {editingTeacher && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Key className="w-4 h-4 text-indigo-600" />
+                Update Faculty Credentials & Account
+              </h2>
+              <button
+                type="button"
+                onClick={() => setEditingTeacher(null)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-semibold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {editError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                <span>{editError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateCredentials} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Full Name (with Title) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editFullName}
+                  onChange={(e) => setEditFullName(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Institutional Email *
+                </label>
+                <div className="relative">
+                  <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    required
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Department / Specialisation *
+                </label>
+                <select
+                  value={editDepartment}
+                  onChange={(e) => setEditDepartment(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden bg-white"
+                >
+                  {DEPARTMENTS.map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  New Password (Optional)
+                </label>
+                <div className="relative">
+                  <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Leave blank to keep existing password unchanged"
+                    value={editPassword}
+                    onChange={(e) => setEditPassword(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-xs font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Enter a new password (min 6 characters) to reset this user's password.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingTeacher(null)}
+                  className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isEditLoading}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition-colors disabled:opacity-50"
+                >
+                  {isEditLoading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Save & Update Account"
                   )}
                 </button>
               </div>

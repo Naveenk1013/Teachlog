@@ -369,6 +369,95 @@ export async function toggleTeacherStatusAction(teacherId: string, isActive: boo
   return { success: true };
 }
 
+export async function updateUserCredentialsAction(data: {
+  userId: string;
+  email?: string;
+  password?: string;
+  fullName?: string;
+  department?: string;
+}) {
+  const admin = await getCurrentTeacherUser();
+  if (!admin || admin.role !== "admin") {
+    return { success: false, error: "Unauthorized. Administrator privileges required." };
+  }
+
+  const { userId, email, password, fullName, department } = data;
+  if (!userId) {
+    return { success: false, error: "User ID is required." };
+  }
+
+  const adminClient = createAdminClient();
+
+  try {
+    // 1. Prepare Auth update attributes
+    const authAttributes: Record<string, any> = {};
+
+    if (email && email.trim()) {
+      authAttributes.email = email.trim().toLowerCase();
+      authAttributes.email_confirm = true;
+    }
+
+    if (password && password.trim()) {
+      if (password.trim().length < 6) {
+        return { success: false, error: "Password must be at least 6 characters." };
+      }
+      authAttributes.password = password.trim();
+    }
+
+    if (fullName && fullName.trim()) {
+      authAttributes.user_metadata = { full_name: fullName.trim() };
+    }
+
+    // Update Auth user if attributes present
+    if (Object.keys(authAttributes).length > 0) {
+      const { error: authErr } = await adminClient.auth.admin.updateUserById(userId, authAttributes);
+      if (authErr) {
+        return { success: false, error: "Failed to update authentication account: " + authErr.message };
+      }
+    }
+
+    // 2. Prepare Profiles table update
+    const profileUpdates: Record<string, any> = {};
+    if (fullName && fullName.trim()) {
+      profileUpdates.full_name = fullName.trim();
+    }
+    if (department !== undefined) {
+      profileUpdates.department = department.trim() || null;
+    }
+
+    if (Object.keys(profileUpdates).length > 0) {
+      const { error: profileErr } = await adminClient
+        .from("profiles")
+        .update(profileUpdates)
+        .eq("id", userId);
+
+      if (profileErr) {
+        return { success: false, error: "Failed to update user profile: " + profileErr.message };
+      }
+    }
+
+    // 3. Write to audit_logs
+    try {
+      await adminClient.from("audit_logs").insert({
+        actor_id: admin.id,
+        action: "CREDENTIALS_UPDATED",
+        entity: "profiles",
+        entity_id: userId,
+        new_data: { email, fullName, department, passwordUpdated: Boolean(password) },
+      });
+    } catch {
+      // Ignore audit log error
+    }
+
+    revalidatePath("/admin/teachers");
+    revalidatePath("/admin/crs");
+    revalidatePath("/admin");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to update user credentials." };
+  }
+}
+
 // ─────────────────────────────────────────────
 // Subject & Syllabus Management Actions
 // ─────────────────────────────────────────────

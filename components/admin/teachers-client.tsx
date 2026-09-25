@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 import { TeacherItem } from "@/lib/data/admin";
 import { createTeacherAction, toggleTeacherStatusAction, updateUserCredentialsAction } from "@/app/(admin)/admin/actions";

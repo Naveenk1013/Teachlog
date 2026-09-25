@@ -1,19 +1,13 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { loginAction, quickDemoLogin } from "./actions";
-import { Lock, Mail, GraduationCap, ArrowRight, AlertCircle, ShieldCheck, UserCheck, BookOpen } from "lucide-react";
-import { UserRole } from "@/lib/types/database";
+import { loginAction } from "./actions";
+import { Lock, Mail, ArrowRight, AlertCircle } from "lucide-react";
 
 export default function LoginPage() {
   const [state, formAction, isPending] = useActionState(loginAction, null);
   const [selectedEmail, setSelectedEmail] = useState("");
   const [selectedPassword, setSelectedPassword] = useState("");
-
-  const fillCredentials = (email: string) => {
-    setSelectedEmail(email);
-    setSelectedPassword("password123");
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex flex-col justify-center items-center p-4 sm:p-6">
@@ -110,53 +104,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Login Section */}
-          <div className="mt-6 pt-5 border-t border-slate-700/60">
-            <span className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2.5 text-center">
-              Quick Test Accounts (Password: <code className="text-indigo-400 font-mono">password123</code>)
-            </span>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => fillCredentials("admin@iihmhyd.edu.in")}
-                className="p-2 rounded-xl bg-slate-900/90 hover:bg-slate-700/80 border border-slate-700/80 text-left transition-all group"
-              >
-                <div className="flex items-center gap-1.5 text-indigo-400 font-semibold text-xs">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Admin</span>
-                </div>
-                <p className="text-[10px] text-slate-400 truncate mt-0.5">Naveen</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => fillCredentials("rajesh.kumar@iihmhyd.edu.in")}
-                className="p-2 rounded-xl bg-slate-900/90 hover:bg-slate-700/80 border border-slate-700/80 text-left transition-all group"
-              >
-                <div className="flex items-center gap-1.5 text-blue-400 font-semibold text-xs">
-                  <BookOpen className="w-3.5 h-3.5" />
-                  <span>Teacher</span>
-                </div>
-                <p className="text-[10px] text-slate-400 truncate mt-0.5">Chef Rajesh</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => fillCredentials("aarav.cr@student.iihmhyd.edu.in")}
-                className="p-2 rounded-xl bg-slate-900/90 hover:bg-slate-700/80 border border-slate-700/80 text-left transition-all group"
-              >
-                <div className="flex items-center gap-1.5 text-emerald-400 font-semibold text-xs">
-                  <UserCheck className="w-3.5 h-3.5" />
-                  <span>CR</span>
-                </div>
-                <p className="text-[10px] text-slate-400 truncate mt-0.5">Aarav Patel</p>
-              </button>
-            </div>
-            <p className="text-[10px] text-slate-500 text-center mt-2.5">
-              Click a role above to auto-fill credentials, then click <strong>Sign In</strong>.
-            </p>
-          </div>
         </div>
 
         {/* Footer */}

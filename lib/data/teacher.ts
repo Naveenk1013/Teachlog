@@ -187,7 +187,6 @@ export async function getTeacherWeeklySessions(
         syllabus_topics(id, subject_id, unit_no, seq, title)
       )
     `)
-    .eq("teacher_id", teacherId)
     .eq("batch_id", batchId)
     .eq("subject_id", subjectId)
     .gte("session_date", weekStartStr)

@@ -39,7 +39,7 @@ export async function getWeeklyReportData(
 
   if (batchErr || !batch) return null;
 
-  // 3. Fetch Sessions (Mon - Sat)
+  // 3. Fetch Sessions (Mon - Sat for this subject & batch)
   const { data: sessionsData, error: sessErr } = await adminClient
     .from("class_sessions")
     .select(`
@@ -52,7 +52,6 @@ export async function getWeeklyReportData(
       assignment_activity,
       status
     `)
-    .eq("teacher_id", teacherId)
     .eq("subject_id", subjectId)
     .eq("batch_id", batchId)
     .gte("session_date", weekStartStr)
@@ -72,11 +71,10 @@ export async function getWeeklyReportData(
     status: s.status,
   }));
 
-  // 4. Fetch Weekly Summary
+  // 4. Fetch Weekly Summary for this batch/subject/week
   const { data: summaryData } = await adminClient
     .from("weekly_summaries")
     .select("*")
-    .eq("teacher_id", teacherId)
     .eq("subject_id", subjectId)
     .eq("batch_id", batchId)
     .eq("week_start", weekStartStr)

@@ -9,6 +9,7 @@ import {
 import { getWeekStart, getTeachingWeekOfMonth } from "@/lib/dates";
 import { format, parseISO, addDays } from "date-fns";
 import { WeekBatchSelector } from "@/components/teacher/week-batch-selector";
+import { VerifyAllButton } from "@/components/teacher/verify-all-button";
 import {
   FileSpreadsheet,
   Download,
@@ -131,10 +132,18 @@ export default async function TeacherReportsPage({
                 All Sessions Verified
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                <Clock className="w-3.5 h-3.5 text-amber-600" />
-                {pendingSessions} Unverified Session(s)
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  {pendingSessions} Unverified Session(s)
+                </span>
+                <VerifyAllButton
+                  batchId={activeAssignment.batchId}
+                  subjectId={activeAssignment.subjectId}
+                  weekStartStr={weekStartStr}
+                  pendingCount={pendingSessions}
+                />
+              </div>
             )}
           </div>
         </div>

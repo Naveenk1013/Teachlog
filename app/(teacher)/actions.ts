@@ -86,7 +86,7 @@ export async function verifySessionAction(sessionId: string) {
 
   const adminClient = createAdminClient();
 
-  // Verify ownership
+  // Verify session exists
   const { data: session, error: fetchErr } = await adminClient
     .from("class_sessions")
     .select("id, teacher_id, status")
@@ -95,10 +95,6 @@ export async function verifySessionAction(sessionId: string) {
 
   if (fetchErr || !session) {
     return { success: false, error: "Session not found." };
-  }
-
-  if (teacher.role !== "admin" && session.teacher_id !== teacher.id) {
-    return { success: false, error: "You can only verify your own sessions." };
   }
 
   const { error: updateErr } = await adminClient
@@ -116,7 +112,12 @@ export async function verifySessionAction(sessionId: string) {
   }
 
   revalidatePath("/dashboard");
+  revalidatePath("/weekly-logs");
+  revalidatePath("/reports");
+  revalidatePath("/summaries");
+  revalidatePath("/calendar");
   revalidatePath("/cr/history");
+  revalidatePath("/cr/logs");
   return { success: true };
 }
 
@@ -131,7 +132,7 @@ export async function verifyAllWeekSessionsAction(batchId: string, subjectId: st
   const endDate = addDays(startDate, 5); // Saturday
   const endStr = format(endDate, "yyyy-MM-dd");
 
-  const query = adminClient
+  const { error } = await adminClient
     .from("class_sessions")
     .update({
       status: "verified",
@@ -145,17 +146,17 @@ export async function verifyAllWeekSessionsAction(batchId: string, subjectId: st
     .lte("session_date", endStr)
     .eq("status", "submitted");
 
-  if (teacher.role !== "admin") {
-    query.eq("teacher_id", teacher.id);
-  }
-
-  const { error } = await query;
   if (error) {
     return { success: false, error: "Failed to verify week's sessions: " + error.message };
   }
 
   revalidatePath("/dashboard");
+  revalidatePath("/weekly-logs");
+  revalidatePath("/reports");
+  revalidatePath("/summaries");
+  revalidatePath("/calendar");
   revalidatePath("/cr/history");
+  revalidatePath("/cr/logs");
   return { success: true };
 }
 

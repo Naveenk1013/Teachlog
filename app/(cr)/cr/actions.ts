@@ -102,6 +102,13 @@ export async function createClassSessionAction(prevState: any, formData: FormDat
 
   revalidatePath("/cr/log");
   revalidatePath("/cr/history");
+  revalidatePath("/cr/logs");
+  revalidatePath("/dashboard");
+  revalidatePath("/weekly-logs");
+  revalidatePath("/reports");
+  revalidatePath("/summaries");
+  revalidatePath("/calendar");
+  revalidatePath("/admin/logs");
 
   return { success: true, message: "Class session logged successfully!" };
 }
@@ -178,6 +185,13 @@ export async function updateClassSessionAction(prevState: any, formData: FormDat
 
   revalidatePath("/cr/history");
   revalidatePath("/cr/log");
+  revalidatePath("/cr/logs");
+  revalidatePath("/dashboard");
+  revalidatePath("/weekly-logs");
+  revalidatePath("/reports");
+  revalidatePath("/summaries");
+  revalidatePath("/calendar");
+  revalidatePath("/admin/logs");
 
   return { success: true, message: "Class session updated successfully." };
 }

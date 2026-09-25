@@ -1207,3 +1207,15 @@ where (
   or (s.practical_group is null and s.semester = 5 and b.name ilike '%Sem 5%')
 )
 and s.batch_id is null;
+
+-- 6. Relax semester check constraint up to 8 and add promotion indexes
+do $$
+begin
+  alter table students drop constraint if exists students_semester_check;
+  alter table students add constraint students_semester_check check (semester between 1 and 8);
+exception
+  when others then null;
+end $$;
+
+create index if not exists idx_students_promotion on students (semester, is_active);
+create index if not exists idx_batches_promotion on batches (current_semester, is_active);

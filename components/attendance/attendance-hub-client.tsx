@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { BatchItem } from "@/lib/data/admin";
 import { CohortAttendanceOverviewResult } from "@/lib/data/attendance";
 import { getCohortAttendanceOverviewAction } from "@/app/actions/attendance";
 import { SessionAttendanceModal } from "@/components/attendance/session-attendance-modal";
+import { PromoteStudentsModal } from "@/components/attendance/promote-students-modal";
 import {
   Users,
   CheckCircle2,
@@ -23,6 +24,9 @@ import {
   Edit3,
   ArrowUpDown,
   Download,
+  FileText,
+  Code,
+  ChevronDown,
 } from "lucide-react";
 
 interface AttendanceHubClientProps {
@@ -45,6 +49,22 @@ export function AttendanceHubClient({
   const [studentSearch, setStudentSearch] = useState("");
   const [onlyShortage, setOnlyShortage] = useState(false);
 
+  // Export & Promote State
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   // Modal State
   const [activeSession, setActiveSession] = useState<{
     id: string;
@@ -55,14 +75,10 @@ export function AttendanceHubClient({
     sessionTime: string;
   } | null>(null);
 
-  useEffect(() => {
-    if (!selectedBatchId) return;
-
-    let mounted = true;
+  const fetchCohortOverview = (batchId: string) => {
+    if (!batchId) return;
     setIsLoading(true);
-
-    getCohortAttendanceOverviewAction(selectedBatchId).then((res) => {
-      if (!mounted) return;
+    getCohortAttendanceOverviewAction(batchId).then((res) => {
       setIsLoading(false);
       if (res.success && res.overview) {
         setOverview(res.overview);
@@ -70,10 +86,10 @@ export function AttendanceHubClient({
         setOverview(null);
       }
     });
+  };
 
-    return () => {
-      mounted = false;
-    };
+  useEffect(() => {
+    fetchCohortOverview(selectedBatchId);
   }, [selectedBatchId]);
 
   const selectedBatch = batches.find((b) => b.id === selectedBatchId);
@@ -89,7 +105,7 @@ export function AttendanceHubClient({
 
   const shortageStudentsCount = (overview?.students || []).filter((s) => s.percentage < 75).length;
 
-  // Export CSV
+  // Export CSV fallback (client-side)
   const handleExportCSV = () => {
     if (!overview || overview.students.length === 0) return;
 
@@ -140,23 +156,110 @@ export function AttendanceHubClient({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            disabled={!overview || overview.students.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 disabled:opacity-50 transition-colors shadow-xs"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export CSV</span>
-          </button>
+        <div className="flex items-center flex-wrap gap-2">
+          {/* Promote Semester Modal Button (Admin only) */}
+          {currentUserRole === "admin" && (
+            <button
+              type="button"
+              onClick={() => setIsPromoteModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors shadow-xs"
+            >
+              <GraduationCap className="w-4 h-4 text-indigo-600" />
+              <span>Promote Semester</span>
+            </button>
+          )}
+
+          {/* Multi-Format Export Dropdown */}
+          <div className="relative" ref={exportDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+              disabled={!overview || overview.students.length === 0}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 disabled:opacity-50 transition-colors shadow-xs"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-500" />
+              <span>Export Report</span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
+            </button>
+
+            {isExportMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl border border-slate-200 shadow-xl z-30 py-2 divide-y divide-slate-100 animate-in fade-in-50 zoom-in-95">
+                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Download Formats
+                </div>
+
+                <div className="py-1">
+                  {/* DOCX Word */}
+                  <a
+                    href={`/api/reports/attendance?batchId=${selectedBatchId}&format=docx`}
+                    download
+                    onClick={() => setIsExportMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-900 transition-colors"
+                  >
+                    <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                    <div>
+                      <span className="font-semibold block">Word Document (.docx)</span>
+                      <span className="text-[10px] text-slate-400">Official IIHM letterhead &amp; signatures</span>
+                    </div>
+                  </a>
+
+                  {/* Excel / CSV */}
+                  <a
+                    href={`/api/reports/attendance?batchId=${selectedBatchId}&format=csv`}
+                    download
+                    onClick={() => setIsExportMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 transition-colors"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div>
+                      <span className="font-semibold block">Excel / CSV (.csv)</span>
+                      <span className="text-[10px] text-slate-400">Full roster with percentages</span>
+                    </div>
+                  </a>
+
+                  {/* XML */}
+                  <a
+                    href={`/api/reports/attendance?batchId=${selectedBatchId}&format=xml`}
+                    download
+                    onClick={() => setIsExportMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-amber-50 hover:text-amber-900 transition-colors"
+                  >
+                    <Code className="w-4 h-4 text-amber-600 shrink-0" />
+                    <div>
+                      <span className="font-semibold block">XML Data (.xml)</span>
+                      <span className="text-[10px] text-slate-400">Structured data interchange format</span>
+                    </div>
+                  </a>
+                </div>
+
+                <div className="pt-1">
+                  {/* Print */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsExportMenuOpen(false);
+                      handlePrint();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                  >
+                    <Printer className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <div>
+                      <span className="font-semibold block">Print / PDF Document</span>
+                      <span className="text-[10px] text-slate-400">Browser print &amp; PDF preview</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={handlePrint}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition-colors shadow-xs"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>Print Register</span>
+            <span>Print</span>
           </button>
         </div>
       </div>
@@ -545,6 +648,17 @@ export function AttendanceHubClient({
           }}
         />
       )}
+
+      {/* Student Semester Promotion Modal */}
+      <PromoteStudentsModal
+        isOpen={isPromoteModalOpen}
+        onClose={() => setIsPromoteModalOpen(false)}
+        batches={batches}
+        defaultBatchId={selectedBatchId}
+        onPromotionSuccess={() => {
+          fetchCohortOverview(selectedBatchId);
+        }}
+      />
     </div>
   );
 }

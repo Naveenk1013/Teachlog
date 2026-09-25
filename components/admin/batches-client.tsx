@@ -7,6 +7,7 @@ import {
   createMultipleBatchesAction,
   deleteBatchAction,
 } from "@/app/(admin)/admin/actions";
+import { PromoteStudentsModal } from "@/components/attendance/promote-students-modal";
 import {
   Users,
   Plus,
@@ -53,6 +54,7 @@ export function BatchesClient({
   const [typeFilter, setTypeFilter] = useState("all");
 
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isPromoteOpen, setIsPromoteOpen] = useState(false);
   const [modalTab, setModalTab] = useState<"single" | "multi">("single");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -393,18 +395,27 @@ export function BatchesClient({
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setErrorMessage(null);
-            // Default initial name
-            setBatchName(computeBatchName("Sec A", "ALL", ""));
-            setIsAddOpen(true);
-          }}
-          className="inline-flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2.5 rounded-xl font-semibold text-xs shadow-xs transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Register New Batch / Section</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsPromoteOpen(true)}
+            className="inline-flex items-center justify-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-4 py-2.5 rounded-xl font-semibold text-xs shadow-xs transition-colors"
+          >
+            <GraduationCap className="w-4 h-4 text-indigo-600" />
+            <span>Promote Cohort / Semester</span>
+          </button>
+          <button
+            onClick={() => {
+              setErrorMessage(null);
+              // Default initial name
+              setBatchName(computeBatchName("Sec A", "ALL", ""));
+              setIsAddOpen(true);
+            }}
+            className="inline-flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white px-4 py-2.5 rounded-xl font-semibold text-xs shadow-xs transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Register New Batch / Section</span>
+          </button>
+        </div>
       </div>
 
       {successMessage && (
@@ -1232,6 +1243,17 @@ export function BatchesClient({
           </div>
         </div>
       )}
+
+      {/* Promotion Modal */}
+      <PromoteStudentsModal
+        isOpen={isPromoteOpen}
+        onClose={() => setIsPromoteOpen(false)}
+        batches={batches}
+        onPromotionSuccess={() => {
+          setSuccessMessage("Students promoted successfully! Refreshing...");
+          window.location.reload();
+        }}
+      />
     </div>
   );
 }

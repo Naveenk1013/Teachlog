@@ -167,3 +167,269 @@ export async function getCohortAttendanceOverviewAction(batchId: string) {
   return { success: true, overview };
 }
 
+export interface PromotionPreviewInput {
+  mode: "semester" | "batch";
+  sourceSemester?: number;
+  sourceBatchId?: string;
+}
+
+export interface PromoteStudentsInput {
+  mode: "semester" | "batch";
+  sourceSemester?: number;
+  sourceBatchId?: string;
+  targetSemester: number;
+  isGraduating?: boolean;
+  newAcademicYear?: string;
+  advanceBatch?: boolean;
+  targetBatchId?: string;
+}
+
+/**
+ * Preview how many students and groups will be affected by a promotion
+ */
+export async function previewPromotionAction(input: PromotionPreviewInput) {
+  const user = await getCurrentAppUser();
+  if (!user || user.role !== "admin") {
+    return { success: false, error: "Administrator authorization required." };
+  }
+
+  const adminClient = createAdminClient();
+
+  if (input.mode === "batch" && input.sourceBatchId) {
+    const { data: batch } = await adminClient
+      .from("batches")
+      .select("id, name, current_semester, academic_year")
+      .eq("id", input.sourceBatchId)
+      .single();
+
+    if (!batch) {
+      return { success: false, error: "Selected batch not found." };
+    }
+
+    const roster = await getStudentsForBatch(batch.id);
+    const students = roster?.students || [];
+
+    return {
+      success: true,
+      count: students.length,
+      batchName: batch.name,
+      currentSemester: batch.current_semester,
+      academicYear: batch.academic_year,
+      students: students.slice(0, 10).map((s) => ({
+        id: s.id,
+        rollNumber: s.rollNumber,
+        fullName: s.fullName,
+        section: s.section,
+        practicalGroup: s.practicalGroup,
+      })),
+    };
+  }
+
+  // Mode: Semester
+  const sourceSem = input.sourceSemester || 1;
+  const { data: students, error } = await adminClient
+    .from("students")
+    .select("id, roll_number, full_name, section, practical_group, semester, academic_year")
+    .eq("semester", sourceSem)
+    .eq("is_active", true)
+    .order("roll_number", { ascending: true });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  const studentList = students || [];
+  const sectionCounts: Record<string, number> = {};
+  const groupCounts: Record<string, number> = {};
+
+  studentList.forEach((s) => {
+    sectionCounts[s.section] = (sectionCounts[s.section] || 0) + 1;
+    if (s.practical_group) {
+      groupCounts[s.practical_group] = (groupCounts[s.practical_group] || 0) + 1;
+    }
+  });
+
+  return {
+    success: true,
+    count: studentList.length,
+    currentSemester: sourceSem,
+    sectionCounts,
+    groupCounts,
+    students: studentList.slice(0, 10).map((s) => ({
+      id: s.id,
+      rollNumber: s.roll_number,
+      fullName: s.full_name,
+      section: s.section,
+      practicalGroup: s.practical_group,
+    })),
+  };
+}
+
+/**
+ * Promote students from one semester to the next, update batches and academic year
+ */
+export async function promoteStudentsAction(input: PromoteStudentsInput) {
+  const user = await getCurrentAppUser();
+  if (!user || user.role !== "admin") {
+    return { success: false, error: "Administrator authorization required." };
+  }
+
+  const adminClient = createAdminClient();
+  const isGraduating = input.isGraduating || input.targetSemester > 6;
+  const targetSem = isGraduating ? 6 : Math.min(6, Math.max(1, input.targetSemester));
+  const newAcademicYear = input.newAcademicYear?.trim();
+
+  let affectedStudentIds: string[] = [];
+  let sourceLabel = "";
+
+  if (input.mode === "batch" && input.sourceBatchId) {
+    const { data: batch } = await adminClient
+      .from("batches")
+      .select("id, name, current_semester, academic_year")
+      .eq("id", input.sourceBatchId)
+      .single();
+
+    if (!batch) {
+      return { success: false, error: "Batch not found." };
+    }
+
+    sourceLabel = batch.name;
+    const roster = await getStudentsForBatch(batch.id);
+    affectedStudentIds = (roster?.students || []).map((s) => s.id);
+
+    if (affectedStudentIds.length === 0) {
+      return { success: false, error: "No active students found in this batch to promote." };
+    }
+
+    // 1. Update Students
+    const studentUpdatePayload: any = {
+      semester: targetSem,
+      is_active: !isGraduating,
+    };
+    if (newAcademicYear) {
+      studentUpdatePayload.academic_year = newAcademicYear;
+    }
+    if (input.targetBatchId) {
+      studentUpdatePayload.batch_id = input.targetBatchId;
+    }
+
+    const { error: studentErr } = await adminClient
+      .from("students")
+      .update(studentUpdatePayload)
+      .in("id", affectedStudentIds);
+
+    if (studentErr) {
+      return { success: false, error: "Failed to update students: " + studentErr.message };
+    }
+
+    // 2. Advance the batch if requested
+    if (input.advanceBatch) {
+      const batchUpdatePayload: any = {
+        is_active: !isGraduating,
+      };
+      if (!isGraduating) {
+        batchUpdatePayload.current_semester = targetSem;
+      }
+      if (newAcademicYear) {
+        batchUpdatePayload.academic_year = newAcademicYear;
+      }
+
+      await adminClient
+        .from("batches")
+        .update(batchUpdatePayload)
+        .eq("id", batch.id);
+    }
+  } else {
+    // Mode: Entire Semester
+    const sourceSem = input.sourceSemester || 1;
+    sourceLabel = `Semester ${sourceSem}`;
+
+    const { data: students, error: fetchErr } = await adminClient
+      .from("students")
+      .select("id")
+      .eq("semester", sourceSem)
+      .eq("is_active", true);
+
+    if (fetchErr || !students || students.length === 0) {
+      return { success: false, error: `No active students found in Semester ${sourceSem} to promote.` };
+    }
+
+    affectedStudentIds = students.map((s) => s.id);
+
+    // 1. Update students
+    const studentUpdatePayload: any = {
+      semester: targetSem,
+      is_active: !isGraduating,
+    };
+    if (newAcademicYear) {
+      studentUpdatePayload.academic_year = newAcademicYear;
+    }
+    if (input.targetBatchId) {
+      studentUpdatePayload.batch_id = input.targetBatchId;
+    }
+
+    const { error: studentErr } = await adminClient
+      .from("students")
+      .update(studentUpdatePayload)
+      .in("id", affectedStudentIds);
+
+    if (studentErr) {
+      return { success: false, error: "Failed to update students: " + studentErr.message };
+    }
+
+    // 2. Advance any matching batches if requested
+    if (input.advanceBatch) {
+      const batchUpdatePayload: any = {
+        is_active: !isGraduating,
+      };
+      if (!isGraduating) {
+        batchUpdatePayload.current_semester = targetSem;
+      }
+      if (newAcademicYear) {
+        batchUpdatePayload.academic_year = newAcademicYear;
+      }
+
+      await adminClient
+        .from("batches")
+        .update(batchUpdatePayload)
+        .eq("current_semester", sourceSem)
+        .eq("is_active", true);
+    }
+  }
+
+  // 3. Record in audit_logs
+  try {
+    await adminClient.from("audit_logs").insert({
+      actor_id: user.id,
+      action: isGraduating ? "STUDENTS_GRADUATED" : "STUDENTS_PROMOTED",
+      entity: "students",
+      entity_id: user.id,
+      new_data: {
+        mode: input.mode,
+        sourceLabel,
+        targetSemester: isGraduating ? "Graduated / Alumni" : targetSem,
+        studentsCount: affectedStudentIds.length,
+        academicYear: newAcademicYear || "Unchanged",
+        advanceBatch: !!input.advanceBatch,
+      },
+    });
+  } catch {
+    // Ignore audit log error
+  }
+
+  revalidatePath("/attendance");
+  revalidatePath("/admin/attendance");
+  revalidatePath("/admin/batches");
+  revalidatePath("/cr/attendance");
+
+  const successMessage = isGraduating
+    ? `Successfully graduated ${affectedStudentIds.length} students from ${sourceLabel}. Marked as alumni.`
+    : `Successfully promoted ${affectedStudentIds.length} students from ${sourceLabel} to Semester ${targetSem}${newAcademicYear ? ` (${newAcademicYear})` : ""}.`;
+
+  return {
+    success: true,
+    count: affectedStudentIds.length,
+    message: successMessage,
+  };
+}
+

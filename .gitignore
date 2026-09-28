@@ -39,6 +39,9 @@ next-env.d.ts
 # Supabase local
 .supabase
 
+# Scratch
+scratch/
+
 # Password & credentials documentation
 password.md
 passwords.md

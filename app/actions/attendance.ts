@@ -433,3 +433,135 @@ export async function promoteStudentsAction(input: PromoteStudentsInput) {
   };
 }
 
+export interface CreateClassAttendanceSessionInput {
+  batchId: string;
+  subjectId: string;
+  teacherId: string;
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
+  classType: "Theory" | "Practical";
+  topicCovered: string;
+  attendanceRecords?: AttendanceEntryInput[];
+}
+
+/**
+ * Creates a class session and saves student attendance records in one atomic workflow
+ */
+export async function createClassAttendanceSessionAction(
+  input: CreateClassAttendanceSessionInput
+) {
+  const user = await getCurrentAppUser();
+  if (!user) {
+    return { success: false, error: "Unauthorized. Please sign in." };
+  }
+
+  if (!input.batchId || !input.subjectId || !input.teacherId) {
+    return { success: false, error: "Batch, Subject, and Faculty are required." };
+  }
+
+  if (!input.topicCovered || input.topicCovered.trim().length < 3) {
+    return { success: false, error: "Please enter at least 3 characters describing the topic covered." };
+  }
+
+  const adminClient = createAdminClient();
+
+  // 1. Get batch details for semester and academic year
+  const { data: batch, error: batchErr } = await adminClient
+    .from("batches")
+    .select("id, name, current_semester, academic_year, class_strength")
+    .eq("id", input.batchId)
+    .single();
+
+  if (batchErr || !batch) {
+    return { success: false, error: "Selected batch not found." };
+  }
+
+  // 2. Count present students
+  const records = input.attendanceRecords || [];
+  const presentCount = records.length > 0
+    ? records.filter((r) => r.status === "present" || r.status === "late").length
+    : batch.class_strength;
+
+  const now = new Date().toISOString();
+  const isCR = user.role === "cr";
+
+  // 3. Create class session
+  const { data: session, error: sessionErr } = await adminClient
+    .from("class_sessions")
+    .insert({
+      batch_id: input.batchId,
+      subject_id: input.subjectId,
+      teacher_id: input.teacherId,
+      semester: batch.current_semester,
+      academic_year: batch.academic_year,
+      session_date: input.sessionDate,
+      start_time: input.startTime,
+      end_time: input.endTime,
+      students_present: presentCount,
+      topic_covered: input.topicCovered.trim(),
+      topic_planned: input.topicCovered.trim(),
+      status: isCR ? "pending" : "verified",
+      entered_by: user.id,
+      verified_by: isCR ? null : user.id,
+      verified_at: isCR ? null : now,
+    })
+    .select("id")
+    .single();
+
+  if (sessionErr || !session) {
+    return { success: false, error: "Failed to create class session: " + (sessionErr?.message || "Unknown error") };
+  }
+
+  // 4. Save individual attendance records if provided
+  if (records.length > 0) {
+    const upsertRows = records.map((r) => ({
+      session_id: session.id,
+      student_id: r.studentId,
+      status: r.status,
+      remarks: r.remarks?.trim() || null,
+      marked_by: user.id,
+      marked_at: now,
+      updated_by: user.id,
+      updated_at: now,
+    }));
+
+    await adminClient
+      .from("session_attendance")
+      .upsert(upsertRows, { onConflict: "session_id,student_id" });
+  }
+
+  // 5. Audit Log
+  try {
+    await adminClient.from("audit_logs").insert({
+      actor_id: user.id,
+      action: isCR ? "CR_SESSION_CREATED" : "TEACHER_SESSION_RECORDED",
+      entity: "class_sessions",
+      entity_id: session.id,
+      new_data: {
+        batch_id: input.batchId,
+        subject_id: input.subjectId,
+        teacher_id: input.teacherId,
+        date: input.sessionDate,
+        students_present: presentCount,
+        total_marked: records.length,
+      },
+    });
+  } catch {}
+
+  revalidatePath("/attendance");
+  revalidatePath("/admin/attendance");
+  revalidatePath("/cr/attendance");
+  revalidatePath("/cr/history");
+  revalidatePath("/weekly-logs");
+  revalidatePath("/admin/logs");
+
+  return {
+    success: true,
+    sessionId: session.id,
+    presentCount,
+    message: "Attendance sheet and class session recorded successfully.",
+  };
+}
+
+

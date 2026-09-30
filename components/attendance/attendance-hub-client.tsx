@@ -30,19 +30,28 @@ import {
   ChevronDown,
   Share2,
 } from "lucide-react";
+import {
+  CascadingAttendanceForm,
+  SubjectOption,
+  TeacherOption,
+} from "@/components/attendance/cascading-attendance-form";
 
 interface AttendanceHubClientProps {
-  batches: { id: string; name: string; currentSemester: number; academicYear: string }[];
+  batches: { id: string; name: string; currentSemester: number; academicYear: string; intakeYear?: number }[];
   initialBatchId?: string;
   currentUserRole?: "admin" | "teacher" | "cr";
   currentUserName?: string;
+  subjects?: SubjectOption[];
+  teachers?: TeacherOption[];
 }
 
 export function AttendanceHubClient({
   batches,
   initialBatchId,
   currentUserRole = "teacher",
-  currentUserName,
+  currentUserName = "Naveen Kumar",
+  subjects = [],
+  teachers = [],
 }: AttendanceHubClientProps) {
   const [selectedBatchId, setSelectedBatchId] = useState(initialBatchId || batches[0]?.id || "");
   const [activeTab, setActiveTab] = useState<"register" | "students">("register");
@@ -314,6 +323,22 @@ export function AttendanceHubClient({
           </button>
         </div>
       </div>
+
+      {/* ── Cascading Class Attendance Sheet Generator ── */}
+      <CascadingAttendanceForm
+        batches={batches}
+        subjects={subjects}
+        teachers={teachers}
+        currentUserName={currentUserName}
+        currentUserRole={currentUserRole}
+        onCohortSelected={(batchId) => {
+          setSelectedBatchId(batchId);
+          fetchCohortOverview(batchId);
+        }}
+        onSessionCreated={() => {
+          fetchCohortOverview(selectedBatchId);
+        }}
+      />
 
       {/* Cohort Selector & Filter Bar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">

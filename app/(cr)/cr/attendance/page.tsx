@@ -14,7 +14,7 @@ export default async function CRAttendancePage() {
     redirect("/login");
   }
 
-  const { batch } = await getCRBatchAndAssignments(user.id);
+  const { batch, subjects, teachers } = await getCRBatchAndAssignments(user.id);
 
   if (!batch) {
     return (
@@ -36,6 +36,7 @@ export default async function CRAttendancePage() {
       name: batch.name,
       currentSemester: batch.current_semester,
       academicYear: batch.academic_year,
+      intakeYear: batch.intake_year,
     },
   ];
 
@@ -44,6 +45,8 @@ export default async function CRAttendancePage() {
       <AttendanceHubClient
         batches={batches}
         initialBatchId={batch.id}
+        subjects={subjects}
+        teachers={teachers}
         currentUserRole="cr"
         currentUserName={user.fullName}
       />

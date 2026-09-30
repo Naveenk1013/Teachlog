@@ -10,12 +10,13 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const subjectId = searchParams.get("subjectId");
   const batchId = searchParams.get("batchId");
+  const semester = searchParams.get("semester");
   const weekStart = searchParams.get("weekStart");
   const reqTeacherId = searchParams.get("teacherId");
 
-  if (!subjectId || !batchId || !weekStart) {
+  if (!weekStart) {
     return NextResponse.json(
-      { error: "Missing required query parameters (subjectId, batchId, weekStart)" },
+      { error: "Missing required query parameter (weekStart)" },
       { status: 400 }
     );
   }
@@ -27,15 +28,18 @@ export async function GET(request: Request) {
   }
 
   const targetTeacherId =
-    currentUser.role === "admin" && reqTeacherId ? reqTeacherId : currentUser.id;
+    (currentUser.role === "admin" || currentUser.role === "hod") && reqTeacherId
+      ? reqTeacherId
+      : currentUser.id;
 
-  // 2. Fetch Report Data
-  const reportData = await getWeeklyReportData(
-    targetTeacherId,
-    subjectId,
-    batchId,
-    weekStart
-  );
+  // 2. Fetch Report Data (supports semester-wise or batch-specific)
+  const reportData = await getWeeklyReportData({
+    teacherId: targetTeacherId,
+    semester: semester ? Number(semester) : undefined,
+    batchId: batchId && batchId !== "all" ? batchId : undefined,
+    subjectId: subjectId && subjectId !== "all" ? subjectId : undefined,
+    weekStartStr: weekStart,
+  });
 
   if (!reportData) {
     return NextResponse.json(
@@ -56,8 +60,9 @@ export async function GET(request: Request) {
         report_type: "weekly_log",
         params: {
           teacherId: targetTeacherId,
-          subjectId,
-          batchId,
+          semester: semester || reportData.semester,
+          subjectId: subjectId || "all",
+          batchId: batchId || "all",
           weekStart,
         },
       });
@@ -67,13 +72,13 @@ export async function GET(request: Request) {
 
     // 5. Construct Sanitized Filename
     const weekOfMonth = getTeachingWeekOfMonth(parseISO(weekStart));
-    const cleanSubject = (reportData.subjectCode || reportData.subjectName)
+    const cleanFaculty = (reportData.facultyName || "Faculty")
       .replace(/[^a-zA-Z0-9_-]/g, "_")
       .slice(0, 15);
-    const cleanBatch = reportData.batchName
+    const cleanBatch = (reportData.batchName || `Sem_${reportData.semester}`)
       .replace(/[^a-zA-Z0-9_-]/g, "_")
-      .slice(0, 15);
-    const filename = `WeeklyLog_${cleanSubject}_${cleanBatch}_W${weekOfMonth}_${weekStart}.docx`;
+      .slice(0, 25);
+    const filename = `WeeklyLog_${cleanFaculty}_${cleanBatch}_W${weekOfMonth}_${weekStart}.docx`;
 
     // 6. Return File
     return new Response(docxBuffer as any, {

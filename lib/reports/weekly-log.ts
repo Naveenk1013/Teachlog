@@ -230,15 +230,14 @@ export async function buildWeeklyLogDocx(data: WeeklyReportData): Promise<Buffer
 
   // 4. Log Table Headers (7 Columns matching IIHM standard)
   const logHeaders = [
-    { text: "Day & Date", width: 1500 },
-    { text: "Time", width: 1200 },
+    { text: "Day & Date", width: 1700 },
+    { text: "Time", width: 1400 },
     { text: "Topic Planned", width: 2200 },
-    { text: "Topic Completed", width: 2300 },
-    { text: "Teaching Method", width: 1500 },
-    { text: "Assignment/Activity", width: 1400 },
+    { text: "Topic Completed", width: 2200 },
+    { text: "Teaching Method", width: 1400 },
+    { text: "Assignment/Activity", width: 1200 },
     { text: "Faculty Signature", width: 700 },
   ];
-
 
   const logHeaderRow = new TableRow({
     tableHeader: true,
@@ -259,20 +258,22 @@ export async function buildWeeklyLogDocx(data: WeeklyReportData): Promise<Buffer
     ),
   });
 
-  // 5. Log Table Data Rows (Monday to Saturday)
+  // 5. Log Table Data Rows (Monday to Saturday) - strictly following physical template
   const logDataRows: TableRow[] = [];
 
   for (const day of weekDays) {
     const matchingSessions = data.sessions.filter((s) => s.sessionDate === day.dateStr);
-    const dayDisplay = `${day.dayName.slice(0, 3)}, ${format(parseISO(day.dateStr), "dd/MM")}`;
+    const dayDateObj = parseISO(day.dateStr);
+    // E.g. "Tuesday, 22-Sep-2026" matching reference template
+    const dayDisplay = format(dayDateObj, "EEEE, dd-MMM-yyyy");
 
     if (matchingSessions.length === 0) {
-      // Empty row for days with no class
+      // Single row for days with no class
       logDataRows.push(
         new TableRow({
           children: [
             new TableCell({
-              width: { size: 1500, type: WidthType.DXA },
+              width: { size: 1700, type: WidthType.DXA },
               borders: CELL_BORDERS,
               children: [
                 new Paragraph({
@@ -282,27 +283,39 @@ export async function buildWeeklyLogDocx(data: WeeklyReportData): Promise<Buffer
               ],
             }),
             new TableCell({
-              width: { size: 1200, type: WidthType.DXA },
+              width: { size: 1400, type: WidthType.DXA },
               borders: CELL_BORDERS,
               children: [new Paragraph({ children: [new TextRun({ text: "—", font: FONT_FAMILY, size: 16 })] })],
             }),
             new TableCell({
               width: { size: 2200, type: WidthType.DXA },
               borders: CELL_BORDERS,
-              children: [new Paragraph({ children: [new TextRun({ text: "No class scheduled", font: FONT_FAMILY, italics: true, size: 16, color: "888888" })] })],
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: "No class scheduled",
+                      font: FONT_FAMILY,
+                      italics: true,
+                      size: 16,
+                      color: "888888",
+                    }),
+                  ],
+                }),
+              ],
             }),
             new TableCell({
-              width: { size: 2300, type: WidthType.DXA },
-              borders: CELL_BORDERS,
-              children: [new Paragraph({ children: [new TextRun({ text: "—", font: FONT_FAMILY, size: 16 })] })],
-            }),
-            new TableCell({
-              width: { size: 1500, type: WidthType.DXA },
+              width: { size: 2200, type: WidthType.DXA },
               borders: CELL_BORDERS,
               children: [new Paragraph({ children: [new TextRun({ text: "—", font: FONT_FAMILY, size: 16 })] })],
             }),
             new TableCell({
               width: { size: 1400, type: WidthType.DXA },
+              borders: CELL_BORDERS,
+              children: [new Paragraph({ children: [new TextRun({ text: "—", font: FONT_FAMILY, size: 16 })] })],
+            }),
+            new TableCell({
+              width: { size: 1200, type: WidthType.DXA },
               borders: CELL_BORDERS,
               children: [new Paragraph({ children: [new TextRun({ text: "—", font: FONT_FAMILY, size: 16 })] })],
             }),
@@ -315,82 +328,126 @@ export async function buildWeeklyLogDocx(data: WeeklyReportData): Promise<Buffer
         })
       );
     } else {
-      // One row per session
-      for (const session of matchingSessions) {
-        logDataRows.push(
-          new TableRow({
+      // Exactly like physical sheet: 1 table row per day containing all classes for that day!
+      const timeParagraphs = matchingSessions.map(
+        (s) =>
+          new Paragraph({
+            spacing: { before: 40, after: 40 },
             children: [
-              new TableCell({
-                width: { size: 1500, type: WidthType.DXA },
-                borders: CELL_BORDERS,
-                children: [
-                  new Paragraph({
-                    spacing: { before: 60, after: 60 },
-                    children: [new TextRun({ text: dayDisplay, font: FONT_FAMILY, bold: true, size: 16 })],
-                  }),
-                ],
-              }),
-              new TableCell({
-                width: { size: 1200, type: WidthType.DXA },
-                borders: CELL_BORDERS,
-                children: [
-                  new Paragraph({
-                    spacing: { before: 60, after: 60 },
-                    children: [new TextRun({ text: `${session.startTime}-${session.endTime}`, font: FONT_FAMILY, size: 16 })],
-                  }),
-                ],
-              }),
-              new TableCell({
-                width: { size: 2200, type: WidthType.DXA },
-                borders: CELL_BORDERS,
-                children: [
-                  new Paragraph({
-                    spacing: { before: 60, after: 60 },
-                    children: [new TextRun({ text: session.topicCovered || session.topicPlanned || "—", font: FONT_FAMILY, size: 16 })],
-                  }),
-                ],
-              }),
-              new TableCell({
-                width: { size: 2300, type: WidthType.DXA },
-                borders: CELL_BORDERS,
-                children: [
-                  new Paragraph({
-                    spacing: { before: 60, after: 60 },
-                    children: [new TextRun({ text: session.topicCovered || session.topicPlanned || "—", font: FONT_FAMILY, size: 16 })],
-                  }),
-                ],
-              }),
-              new TableCell({
-                width: { size: 1500, type: WidthType.DXA },
-                borders: CELL_BORDERS,
-                children: [
-                  new Paragraph({
-                    spacing: { before: 60, after: 60 },
-                    children: [new TextRun({ text: session.teachingMethod || "Lecture", font: FONT_FAMILY, size: 16 })],
-                  }),
-                ],
-              }),
-              new TableCell({
-                width: { size: 1400, type: WidthType.DXA },
-                borders: CELL_BORDERS,
-                children: [
-                  new Paragraph({
-                    spacing: { before: 60, after: 60 },
-                    children: [new TextRun({ text: session.assignmentActivity || "—", font: FONT_FAMILY, size: 16 })],
-                  }),
-                ],
-              }),
-              new TableCell({
-                width: { size: 700, type: WidthType.DXA },
-                borders: CELL_BORDERS,
-                children: [new Paragraph({ children: [] })],
+              new TextRun({
+                text: `${s.startTime} - ${s.endTime}`,
+                font: FONT_FAMILY,
+                size: 16,
               }),
             ],
           })
-        );
-      }
+      );
+
+      const topicPlanParagraphs = matchingSessions.map(
+        (s) =>
+          new Paragraph({
+            spacing: { before: 40, after: 40 },
+            children: [
+              new TextRun({
+                text: s.topicPlanned || s.topicCovered || "Curriculum Session",
+                font: FONT_FAMILY,
+                size: 16,
+              }),
+            ],
+          })
+      );
+
+      const topicCompParagraphs = matchingSessions.map(
+        (s) =>
+          new Paragraph({
+            spacing: { before: 40, after: 40 },
+            children: [
+              new TextRun({
+                text: s.topicCovered || s.topicPlanned || "Curriculum Session",
+                font: FONT_FAMILY,
+                size: 16,
+              }),
+            ],
+          })
+      );
+
+      const methodParagraphs = matchingSessions.map(
+        (s) =>
+          new Paragraph({
+            spacing: { before: 40, after: 40 },
+            children: [
+              new TextRun({
+                text: s.teachingMethod || "Lecture / Theory / Presentation",
+                font: FONT_FAMILY,
+                size: 16,
+              }),
+            ],
+          })
+      );
+
+      const activityParagraphs = matchingSessions.map(
+        (s) =>
+          new Paragraph({
+            spacing: { before: 40, after: 40 },
+            children: [
+              new TextRun({
+                text: s.assignmentActivity || "—",
+                font: FONT_FAMILY,
+                size: 16,
+              }),
+            ],
+          })
+      );
+
+      logDataRows.push(
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 1700, type: WidthType.DXA },
+              borders: CELL_BORDERS,
+              children: [
+                new Paragraph({
+                  spacing: { before: 60, after: 60 },
+                  children: [new TextRun({ text: dayDisplay, font: FONT_FAMILY, bold: true, size: 16 })],
+                }),
+              ],
+            }),
+            new TableCell({
+              width: { size: 1400, type: WidthType.DXA },
+              borders: CELL_BORDERS,
+              children: timeParagraphs,
+            }),
+            new TableCell({
+              width: { size: 2200, type: WidthType.DXA },
+              borders: CELL_BORDERS,
+              children: topicPlanParagraphs,
+            }),
+            new TableCell({
+              width: { size: 2200, type: WidthType.DXA },
+              borders: CELL_BORDERS,
+              children: topicCompParagraphs,
+            }),
+            new TableCell({
+              width: { size: 1400, type: WidthType.DXA },
+              borders: CELL_BORDERS,
+              children: methodParagraphs,
+            }),
+            new TableCell({
+              width: { size: 1200, type: WidthType.DXA },
+              borders: CELL_BORDERS,
+              children: activityParagraphs,
+            }),
+            new TableCell({
+              width: { size: 700, type: WidthType.DXA },
+              borders: CELL_BORDERS,
+              children: [new Paragraph({ children: [] })],
+            }),
+          ],
+        })
+      );
     }
   }
+
 
   const logTable = new Table({
     width: { size: 10800, type: WidthType.DXA },

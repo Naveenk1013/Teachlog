@@ -144,8 +144,10 @@ export function UnifiedLogsHub({
 
   // DOCX Export Modal state
   const [showDocxModal, setShowDocxModal] = useState(false);
+  const [docxScope, setDocxScope] = useState<"semester" | "batch">("semester");
+  const [docxSemester, setDocxSemester] = useState<number>(selectedBatch?.currentSemester || 1);
   const [docxBatchId, setDocxBatchId] = useState(currentBatchId || data.batches[0]?.id || "");
-  const [docxSubjectId, setDocxSubjectId] = useState(currentSubjectId || data.subjects[0]?.id || "");
+  const [docxSubjectId, setDocxSubjectId] = useState(currentSubjectId || "all");
   const [docxTeacherId, setDocxTeacherId] = useState(currentTeacherId || data.teachers[0]?.id || "");
 
   // Attendance Modal state
@@ -302,6 +304,7 @@ export function UnifiedLogsHub({
     try {
       const res = await aiOneClickGenerateDocxAction({
         weekStart: currentWeekStart,
+        semester: selectedBatch?.currentSemester || 1,
         batchId: currentBatchId,
         subjectId: currentSubjectId,
         teacherId: currentTeacherId || (currentUserRole === "teacher" ? currentUserId : undefined),
@@ -340,6 +343,7 @@ export function UnifiedLogsHub({
     try {
       const res = await aiEnrichWeekLogsAction({
         weekStart: currentWeekStart,
+        semester: selectedBatch?.currentSemester || 1,
         batchId: currentBatchId,
         subjectId: currentSubjectId,
         teacherId: currentTeacherId || (currentUserRole === "teacher" ? currentUserId : undefined),
@@ -368,6 +372,7 @@ export function UnifiedLogsHub({
     try {
       const res = await aiGenerateWeekSummaryAction({
         weekStart: currentWeekStart,
+        semester: selectedBatch?.currentSemester || 1,
         batchId: currentBatchId,
         subjectId: currentSubjectId,
         teacherId: currentTeacherId || (currentUserRole === "teacher" ? currentUserId : undefined),
@@ -468,7 +473,8 @@ export function UnifiedLogsHub({
   const weekStartFormatted = format(weekStartDate, "EEE, MMM d, yyyy");
   const weekEndFormatted = format(addDays(weekStartDate, 5), "EEE, MMM d, yyyy");
 
-  const officialDocxUrl = `/api/reports/weekly-log?weekStart=${currentWeekStart}&batchId=${currentBatchId}&subjectId=${currentSubjectId}${
+  const currentSem = selectedBatch?.currentSemester || 1;
+  const officialDocxUrl = `/api/reports/weekly-log?weekStart=${currentWeekStart}&semester=${currentSem}${
     currentTeacherId ? `&teacherId=${currentTeacherId}` : ""
   }`;
 
@@ -1388,7 +1394,7 @@ export function UnifiedLogsHub({
 
             <div className="p-6 space-y-4 text-xs">
               <p className="text-slate-500 dark:text-slate-400">
-                Official IIHM Weekly Teaching Log Word Documents (.docx) are compiled per Subject and Batch for compliance and auditing. Select the parameters below to download:
+                Official IIHM Weekly Teaching Log Word Documents (.docx) can be downloaded semester-wise (consolidating all sections A & B and practical groups P1/P2) or by specific section.
               </p>
 
               <div>
@@ -1405,20 +1411,70 @@ export function UnifiedLogsHub({
 
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Select Batch / Semester
+                  Download Format Scope
                 </label>
-                <select
-                  value={docxBatchId}
-                  onChange={(e) => setDocxBatchId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                >
-                  {data.batches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} (Sem {b.currentSemester}, {b.academicYear})
-                    </option>
-                  ))}
-                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDocxScope("semester")}
+                    className={`px-3 py-2 rounded-xl font-bold border text-left transition-all ${
+                      docxScope === "semester"
+                        ? "bg-amber-500/10 border-amber-500 text-amber-700 dark:text-amber-300"
+                        : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    <div className="text-xs font-bold">🏛️ Semester-Wise</div>
+                    <div className="text-[10px] font-normal opacity-80">All sections & groups (IIHM Format)</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDocxScope("batch")}
+                    className={`px-3 py-2 rounded-xl font-bold border text-left transition-all ${
+                      docxScope === "batch"
+                        ? "bg-amber-500/10 border-amber-500 text-amber-700 dark:text-amber-300"
+                        : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    <div className="text-xs font-bold">📋 Specific Section</div>
+                    <div className="text-[10px] font-normal opacity-80">Single section only</div>
+                  </button>
+                </div>
               </div>
+
+              {docxScope === "semester" ? (
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Select Semester
+                  </label>
+                  <select
+                    value={docxSemester}
+                    onChange={(e) => setDocxSemester(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  >
+                    <option value={1}>Semester 1 (Batch 2026 - Sec A & B, P1-P4)</option>
+                    <option value={3}>Semester 3 (Batch 2025 - Sec A & B)</option>
+                    <option value={5}>Semester 5 (Batch 2024 - Sec A)</option>
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Select Section / Batch
+                  </label>
+                  <select
+                    value={docxBatchId}
+                    onChange={(e) => setDocxBatchId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  >
+                    {data.batches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} (Sem {b.currentSemester}, {b.academicYear})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -1429,6 +1485,7 @@ export function UnifiedLogsHub({
                   onChange={(e) => setDocxSubjectId(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
                 >
+                  <option value="all">🌟 All Subjects (Combined Faculty Teaching Log)</option>
                   {data.subjects.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.code ? `[${s.code}] ` : ""}
@@ -1448,9 +1505,11 @@ export function UnifiedLogsHub({
                 Cancel
               </button>
               <a
-                href={`/api/reports/weekly-log?weekStart=${data.selectedWeekStart}&batchId=${docxBatchId}&subjectId=${docxSubjectId}${
-                  docxTeacherId ? `&teacherId=${docxTeacherId}` : ""
-                }`}
+                href={`/api/reports/weekly-log?weekStart=${data.selectedWeekStart}${
+                  docxScope === "semester"
+                    ? `&semester=${docxSemester}${docxSubjectId && docxSubjectId !== "all" ? `&subjectId=${docxSubjectId}` : ""}`
+                    : `&batchId=${docxBatchId}${docxSubjectId && docxSubjectId !== "all" ? `&subjectId=${docxSubjectId}` : ""}`
+                }${docxTeacherId ? `&teacherId=${docxTeacherId}` : ""}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setShowDocxModal(false)}

@@ -12,8 +12,9 @@ import { addDays, parseISO, format } from "date-fns";
 
 export async function aiEnrichWeekLogsAction(params: {
   weekStart: string;
-  batchId: string;
-  subjectId: string;
+  semester?: number | string;
+  batchId?: string;
+  subjectId?: string;
   teacherId?: string;
 }) {
   const currentUser = await getCurrentTeacherUser();
@@ -21,12 +22,15 @@ export async function aiEnrichWeekLogsAction(params: {
     return { success: false, error: "Unauthorized. Please log in." };
   }
 
+  const targetTeacherId =
+    currentUser.role === "admin" && params.teacherId ? params.teacherId : currentUser.id;
+
   const adminClient = createAdminClient();
   const startDate = parseISO(params.weekStart);
   const endDate = addDays(startDate, 5); // Saturday
   const endStr = format(endDate, "yyyy-MM-dd");
 
-  // Query sessions for this week, batch, and subject
+  // Query sessions for this week
   let query = adminClient
     .from("class_sessions")
     .select(`
@@ -41,10 +45,18 @@ export async function aiEnrichWeekLogsAction(params: {
       subjects(name, code, semester),
       batches(name)
     `)
-    .eq("batch_id", params.batchId)
-    .eq("subject_id", params.subjectId)
     .gte("session_date", params.weekStart)
     .lte("session_date", endStr);
+
+  if (params.semester) {
+    query = query.eq("semester", Number(params.semester));
+  } else if (params.batchId && params.batchId !== "all") {
+    query = query.eq("batch_id", params.batchId);
+  }
+
+  if (params.subjectId && params.subjectId !== "all") {
+    query = query.eq("subject_id", params.subjectId);
+  }
 
   if (params.teacherId) {
     query = query.eq("teacher_id", params.teacherId);
@@ -56,7 +68,7 @@ export async function aiEnrichWeekLogsAction(params: {
   if (error || !rawSessions || rawSessions.length === 0) {
     return {
       success: false,
-      error: "No class sessions found for the selected week and subject.",
+      error: "No class sessions found for the selected week and criteria.",
     };
   }
 
@@ -73,9 +85,9 @@ export async function aiEnrichWeekLogsAction(params: {
     topicPlanned: s.topic_planned,
     teachingMethod: s.teaching_method,
     assignmentActivity: s.assignment_activity,
-    subjectName,
-    batchName,
-    semester,
+    subjectName: s.subjects?.name || subjectName,
+    batchName: s.batches?.name || batchName,
+    semester: s.subjects?.semester || semester,
   }));
 
   // Run AI enrichment
@@ -109,8 +121,9 @@ export async function aiEnrichWeekLogsAction(params: {
 
 export async function aiGenerateWeekSummaryAction(params: {
   weekStart: string;
-  batchId: string;
-  subjectId: string;
+  semester?: number | string;
+  batchId?: string;
+  subjectId?: string;
   teacherId?: string;
 }) {
   const currentUser = await getCurrentTeacherUser();
@@ -126,7 +139,7 @@ export async function aiGenerateWeekSummaryAction(params: {
   const endDate = addDays(startDate, 5);
   const endStr = format(endDate, "yyyy-MM-dd");
 
-  const { data: rawSessions, error } = await adminClient
+  let query = adminClient
     .from("class_sessions")
     .select(`
       id,
@@ -137,13 +150,31 @@ export async function aiGenerateWeekSummaryAction(params: {
       topic_planned,
       teaching_method,
       assignment_activity,
+      batch_id,
+      subject_id,
       subjects(name, code, semester),
       batches(name)
     `)
-    .eq("batch_id", params.batchId)
-    .eq("subject_id", params.subjectId)
     .gte("session_date", params.weekStart)
     .lte("session_date", endStr);
+
+  if (params.semester) {
+    query = query.eq("semester", Number(params.semester));
+  } else if (params.batchId && params.batchId !== "all") {
+    query = query.eq("batch_id", params.batchId);
+  }
+
+  if (params.subjectId && params.subjectId !== "all") {
+    query = query.eq("subject_id", params.subjectId);
+  }
+
+  if (params.teacherId) {
+    query = query.eq("teacher_id", params.teacherId);
+  } else if (currentUser.role === "teacher") {
+    query = query.eq("teacher_id", currentUser.id);
+  }
+
+  const { data: rawSessions, error } = await query;
 
   if (error || !rawSessions || rawSessions.length === 0) {
     return {
@@ -151,6 +182,15 @@ export async function aiGenerateWeekSummaryAction(params: {
       error: "No class sessions found to synthesize weekly summary from.",
     };
   }
+
+  const resolvedBatchId =
+    params.batchId && params.batchId !== "all"
+      ? params.batchId
+      : (rawSessions[0] as any)?.batch_id;
+  const resolvedSubjectId =
+    params.subjectId && params.subjectId !== "all"
+      ? params.subjectId
+      : (rawSessions[0] as any)?.subject_id;
 
   const subjectName = (rawSessions[0] as any)?.subjects?.name || "Subject";
   const batchName = (rawSessions[0] as any)?.batches?.name || "Batch";
@@ -165,9 +205,9 @@ export async function aiGenerateWeekSummaryAction(params: {
     topicPlanned: s.topic_planned,
     teachingMethod: s.teaching_method,
     assignmentActivity: s.assignment_activity,
-    subjectName,
-    batchName,
-    semester,
+    subjectName: s.subjects?.name || subjectName,
+    batchName: s.batches?.name || batchName,
+    semester: s.subjects?.semester || semester,
   }));
 
   const summary = await generateWeeklySummaryWithAI(
@@ -178,14 +218,20 @@ export async function aiGenerateWeekSummaryAction(params: {
   );
 
   // Check if summary row already exists
-  const { data: existing } = await adminClient
+  let checkExistingQuery = adminClient
     .from("weekly_summaries")
     .select("id")
     .eq("teacher_id", targetTeacherId)
-    .eq("batch_id", params.batchId)
-    .eq("subject_id", params.subjectId)
-    .eq("week_start", params.weekStart)
-    .maybeSingle();
+    .eq("week_start", params.weekStart);
+
+  if (resolvedBatchId) {
+    checkExistingQuery = checkExistingQuery.eq("batch_id", resolvedBatchId);
+  }
+  if (resolvedSubjectId) {
+    checkExistingQuery = checkExistingQuery.eq("subject_id", resolvedSubjectId);
+  }
+
+  const { data: existing } = await checkExistingQuery.maybeSingle();
 
   if (existing) {
     await adminClient
@@ -204,8 +250,8 @@ export async function aiGenerateWeekSummaryAction(params: {
   } else {
     await adminClient.from("weekly_summaries").insert({
       teacher_id: targetTeacherId,
-      batch_id: params.batchId,
-      subject_id: params.subjectId,
+      batch_id: resolvedBatchId,
+      subject_id: resolvedSubjectId,
       week_start: params.weekStart,
       syllabus_coverage: summary.syllabusCoverage,
       practical_conducted: summary.practicalConducted,
@@ -239,8 +285,9 @@ export async function aiGenerateWeekSummaryAction(params: {
  */
 export async function aiOneClickGenerateDocxAction(params: {
   weekStart: string;
-  batchId: string;
-  subjectId: string;
+  semester?: number | string;
+  batchId?: string;
+  subjectId?: string;
   teacherId?: string;
 }) {
   const currentUser = await getCurrentTeacherUser();
@@ -254,6 +301,7 @@ export async function aiOneClickGenerateDocxAction(params: {
   // Step 1: Polish logs
   await aiEnrichWeekLogsAction({
     weekStart: params.weekStart,
+    semester: params.semester,
     batchId: params.batchId,
     subjectId: params.subjectId,
     teacherId: targetTeacherId,
@@ -262,15 +310,21 @@ export async function aiOneClickGenerateDocxAction(params: {
   // Step 2: Ensure 7-section summary is filled
   await aiGenerateWeekSummaryAction({
     weekStart: params.weekStart,
+    semester: params.semester,
     batchId: params.batchId,
     subjectId: params.subjectId,
     teacherId: targetTeacherId,
   });
 
   // Step 3: Return download URL
-  const downloadUrl = `/api/reports/weekly-log?weekStart=${params.weekStart}&batchId=${params.batchId}&subjectId=${params.subjectId}${
-    targetTeacherId ? `&teacherId=${targetTeacherId}` : ""
-  }`;
+  const semParam = params.semester ? `&semester=${params.semester}` : "";
+  const batchParam =
+    params.batchId && params.batchId !== "all" ? `&batchId=${params.batchId}` : "";
+  const subParam =
+    params.subjectId && params.subjectId !== "all" ? `&subjectId=${params.subjectId}` : "";
+  const teacherParam = targetTeacherId ? `&teacherId=${targetTeacherId}` : "";
+
+  const downloadUrl = `/api/reports/weekly-log?weekStart=${params.weekStart}${semParam}${batchParam}${subParam}${teacherParam}`;
 
   return {
     success: true,

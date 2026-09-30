@@ -1,15 +1,49 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { format, addDays, parseISO } from "date-fns";
+import { format, addDays, parseISO, parse } from "date-fns";
 import { WeeklyReportData, ReportSessionData, ReportSummaryData } from "@/lib/reports/weekly-log";
 
+export interface GetWeeklyReportParams {
+  teacherId: string;
+  semester?: number | string;
+  batchId?: string;
+  subjectId?: string;
+  weekStartStr: string;
+}
+
+function formatTimeToAMPM(timeStr: string): string {
+  if (!timeStr) return "";
+  const clean = timeStr.slice(0, 5);
+  try {
+    const d = parse(clean, "HH:mm", new Date());
+    return format(d, "hh:mm a");
+  } catch {
+    return clean;
+  }
+}
+
+/**
+ * Fetch report data supporting both Semester-Wise and Batch-Specific downloads.
+ * If semester is provided (or batchId is omitted), fetches all sessions taught by the faculty
+ * across all sections (Sec A, Sec B) and practical groups (P1, P2, P3, P4) for that semester.
+ */
 export async function getWeeklyReportData(
-  teacherId: string,
-  subjectId: string,
-  batchId: string,
-  weekStartStr: string
+  teacherIdOrParams: string | GetWeeklyReportParams,
+  legacySubjectId?: string,
+  legacyBatchId?: string,
+  legacyWeekStartStr?: string
 ): Promise<WeeklyReportData | null> {
+  const params: GetWeeklyReportParams =
+    typeof teacherIdOrParams === "object"
+      ? teacherIdOrParams
+      : {
+          teacherId: teacherIdOrParams,
+          subjectId: legacySubjectId,
+          batchId: legacyBatchId,
+          weekStartStr: legacyWeekStartStr || format(new Date(), "yyyy-MM-dd"),
+        };
+
   const adminClient = createAdminClient();
-  const startDate = parseISO(weekStartStr);
+  const startDate = parseISO(params.weekStartStr);
   const endDate = addDays(startDate, 5); // Saturday
   const endStr = format(endDate, "yyyy-MM-dd");
 
@@ -17,30 +51,39 @@ export async function getWeeklyReportData(
   const { data: teacher, error: teachErr } = await adminClient
     .from("profiles")
     .select("full_name, department")
-    .eq("id", teacherId)
+    .eq("id", params.teacherId)
     .single();
 
   if (teachErr || !teacher) return null;
 
-  // 2. Fetch Subject & Batch
-  const { data: subject, error: subErr } = await adminClient
-    .from("subjects")
-    .select("name, code, semester")
-    .eq("id", subjectId)
-    .single();
+  // 2. Resolve Semester & Batches
+  let semesterNum: number = params.semester ? Number(params.semester) : 1;
+  let batchNameDisplay = `Semester ${semesterNum}`;
+  let academicYearDisplay = "2026-27";
+  let programmeNameDisplay = "B.Sc. in Hospitality & Hotel Administration";
 
-  if (subErr || !subject) return null;
+  if (params.batchId && params.batchId !== "all") {
+    const { data: batch } = await adminClient
+      .from("batches")
+      .select("name, current_semester, academic_year, programmes(name)")
+      .eq("id", params.batchId)
+      .maybeSingle();
 
-  const { data: batch, error: batchErr } = await adminClient
-    .from("batches")
-    .select("name, current_semester, academic_year, programmes(name)")
-    .eq("id", batchId)
-    .single();
+    if (batch) {
+      semesterNum = batch.current_semester || semesterNum;
+      academicYearDisplay = batch.academic_year || academicYearDisplay;
+      batchNameDisplay = `Semester ${semesterNum} (${batch.name})`;
+      programmeNameDisplay = (batch.programmes as any)?.name || programmeNameDisplay;
+    }
+  } else {
+    // Semester-wise: align batch name with intake year
+    if (semesterNum === 1) batchNameDisplay = "Semester 1 (Batch 2026)";
+    else if (semesterNum === 3 || semesterNum === 4) batchNameDisplay = `Semester ${semesterNum} (Batch 2025)`;
+    else if (semesterNum === 5 || semesterNum === 6) batchNameDisplay = `Semester ${semesterNum} (Batch 2024)`;
+  }
 
-  if (batchErr || !batch) return null;
-
-  // 3. Fetch Sessions (Mon - Sat for this subject & batch)
-  const { data: sessionsData, error: sessErr } = await adminClient
+  // 3. Query Sessions for the Teacher in this Week
+  let query = adminClient
     .from("class_sessions")
     .select(`
       session_date,
@@ -50,35 +93,89 @@ export async function getWeeklyReportData(
       topic_covered,
       teaching_method,
       assignment_activity,
-      status
+      status,
+      subjects(name, code, semester),
+      batches(name, current_semester, academic_year)
     `)
-    .eq("subject_id", subjectId)
-    .eq("batch_id", batchId)
-    .gte("session_date", weekStartStr)
+    .eq("teacher_id", params.teacherId)
+    .gte("session_date", params.weekStartStr)
     .lte("session_date", endStr)
     .order("session_date", { ascending: true })
     .order("start_time", { ascending: true });
 
-  const sessions: ReportSessionData[] = (sessionsData || []).map((s: any) => ({
-    sessionDate: s.session_date,
-    dayName: format(parseISO(s.session_date), "EEEE"),
-    startTime: s.start_time.slice(0, 5),
-    endTime: s.end_time.slice(0, 5),
-    topicPlanned: s.topic_planned || s.topic_covered || "—",
-    topicCovered: s.topic_covered || s.topic_planned || "—",
-    teachingMethod: s.teaching_method,
-    assignmentActivity: s.assignment_activity,
-    status: s.status,
-  }));
+  if (params.semester) {
+    query = query.eq("semester", semesterNum);
+  } else if (params.batchId && params.batchId !== "all") {
+    query = query.eq("batch_id", params.batchId);
+  }
 
-  // 4. Fetch Weekly Summary for this batch/subject/week
-  const { data: summaryData } = await adminClient
+  if (params.subjectId && params.subjectId !== "all") {
+    query = query.eq("subject_id", params.subjectId);
+  }
+
+  const { data: rawSessions } = await query;
+
+  // 4. Map Sessions with Section / Practical Group tags
+  const subjectNamesSet = new Set<string>();
+  const subjectCodesSet = new Set<string>();
+
+  const sessions: ReportSessionData[] = (rawSessions || []).map((s: any) => {
+    const subName = s.subjects?.name || "Subject";
+    const subCode = s.subjects?.code;
+    const batchName = s.batches?.name || "";
+
+    if (subName) subjectNamesSet.add(subName);
+    if (subCode) subjectCodesSet.add(subCode);
+
+    // Extract Section & Practical Group (e.g. Sec A, Sec B, P1, P2)
+    let groupTag = "";
+    if (batchName.includes("Sec A") && batchName.includes("Sec B")) groupTag = "(Sec A & B)";
+    else if (batchName.includes("Sec A")) groupTag = batchName.includes("P1") ? "(Sec A, P1)" : batchName.includes("P2") ? "(Sec A, P2)" : "(Sec A)";
+    else if (batchName.includes("Sec B")) groupTag = batchName.includes("P3") ? "(Sec B, P3)" : batchName.includes("P4") ? "(Sec B, P4)" : "(Sec B)";
+    else if (batchName.includes("P1")) groupTag = "(Group P1)";
+    else if (batchName.includes("P2")) groupTag = "(Group P2)";
+    else if (batchName.includes("P3")) groupTag = "(Group P3)";
+    else if (batchName.includes("P4")) groupTag = "(Group P4)";
+
+    let topicPlan = s.topic_planned || s.topic_covered || "Curriculum Session";
+    let topicComp = s.topic_covered || s.topic_planned || "Curriculum Session";
+
+    // Append group tag if not already mentioned in the topic text
+    if (groupTag && !topicPlan.includes("Sec") && !topicPlan.includes("P1") && !topicPlan.includes("P2")) {
+      topicPlan = `${topicPlan} ${groupTag}`;
+    }
+    if (groupTag && !topicComp.includes("Sec") && !topicComp.includes("P1") && !topicComp.includes("P2")) {
+      topicComp = `${topicComp} ${groupTag}`;
+    }
+
+    const timeStartFormatted = formatTimeToAMPM(s.start_time);
+    const timeEndFormatted = formatTimeToAMPM(s.end_time);
+
+    return {
+      sessionDate: s.session_date,
+      dayName: format(parseISO(s.session_date), "EEEE"),
+      startTime: timeStartFormatted || s.start_time.slice(0, 5),
+      endTime: timeEndFormatted || s.end_time.slice(0, 5),
+      topicPlanned: topicPlan,
+      topicCovered: topicComp,
+      teachingMethod: s.teaching_method || "Lecture / Theory / Presentation",
+      assignmentActivity: s.assignment_activity || "Review questions & concept notes",
+      status: s.status,
+    };
+  });
+
+  // 5. Fetch Weekly Summary
+  let summaryQuery = adminClient
     .from("weekly_summaries")
     .select("*")
-    .eq("subject_id", subjectId)
-    .eq("batch_id", batchId)
-    .eq("week_start", weekStartStr)
-    .maybeSingle();
+    .eq("teacher_id", params.teacherId)
+    .eq("week_start", params.weekStartStr);
+
+  if (params.subjectId && params.subjectId !== "all") {
+    summaryQuery = summaryQuery.eq("subject_id", params.subjectId);
+  }
+
+  const { data: summaryData } = await summaryQuery.maybeSingle();
 
   let summary: ReportSummaryData | null = null;
   if (summaryData) {
@@ -95,18 +192,26 @@ export async function getWeeklyReportData(
     };
   }
 
-  const programmeName = (batch.programmes as any)?.name || "B.Sc. in Hospitality & Hotel Administration";
+  const subjectsCombined =
+    subjectNamesSet.size > 0
+      ? Array.from(subjectNamesSet).join("; ")
+      : "Front Office Operations & Core Curriculum";
+
+  const codesCombined =
+    subjectCodesSet.size > 0
+      ? Array.from(subjectCodesSet).join(", ")
+      : null;
 
   return {
     facultyName: teacher.full_name,
-    department: teacher.department || "Hospitality Studies",
-    subjectName: subject.name,
-    subjectCode: subject.code,
-    programmeName,
-    batchName: batch.name,
-    semester: subject.semester || batch.current_semester,
-    academicYear: batch.academic_year,
-    weekStart: weekStartStr,
+    department: teacher.department || "Front Office Operations",
+    subjectName: subjectsCombined,
+    subjectCode: codesCombined,
+    programmeName: programmeNameDisplay,
+    batchName: batchNameDisplay,
+    semester: semesterNum,
+    academicYear: academicYearDisplay,
+    weekStart: params.weekStartStr,
     sessions,
     summary,
   };

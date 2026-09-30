@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
 import { getCurrentAppUser } from "@/lib/data/auth";
 import { getWeeklyLogsExplorerData } from "@/lib/data/admin";
-import { WeeklyLogsClient } from "@/components/admin/weekly-logs-client";
+import { getWeeklySummary } from "@/lib/data/teacher";
+import { UnifiedLogsHub } from "@/components/logs/unified-logs-hub";
 
 export const metadata = {
-  title: "Weekly Teaching Logs & Quick Editor | Faculty Portal",
-  description: "Inspect Monday–Saturday syllabus delivery across your subjects and batches. Quickly update class topics, teaching methods, and student assignments.",
+  title: "Weekly Logs, Summary & Reports Hub | Faculty Portal",
+  description: "Unified hub for Monday–Saturday teaching logs, 7-section summaries, and 1-click AI-powered official IIHM DOCX generation.",
 };
 
 interface TeacherWeeklyLogsPageProps {
@@ -14,6 +15,7 @@ interface TeacherWeeklyLogsPageProps {
     batchId?: string;
     subjectId?: string;
     weekStart?: string;
+    tab?: "editor" | "summary" | "reports";
   }>;
 }
 
@@ -38,12 +40,33 @@ export default async function TeacherWeeklyLogsPage({ searchParams }: TeacherWee
     weekStart: resolvedParams.weekStart,
   });
 
+  const activeBatchId = resolvedParams.batchId || data.batches[0]?.id || "";
+  const activeSubjectId = resolvedParams.subjectId || data.subjects[0]?.id || "";
+
+  let existingSummary = null;
+  if (defaultTeacherId && activeBatchId && activeSubjectId) {
+    try {
+      existingSummary = await getWeeklySummary(
+        defaultTeacherId,
+        activeBatchId,
+        activeSubjectId,
+        data.selectedWeekStart
+      );
+    } catch {
+      // ignore
+    }
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <WeeklyLogsClient
+      <UnifiedLogsHub
         data={data}
         currentUserRole={user.role}
+        currentUserId={user.id}
+        initialTab={resolvedParams.tab || "editor"}
+        existingSummary={existingSummary}
       />
     </div>
   );
 }
+

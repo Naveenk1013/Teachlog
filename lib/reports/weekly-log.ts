@@ -150,7 +150,7 @@ export async function buildWeeklyLogDocx(data: WeeklyReportData): Promise<Buffer
       spacing: { after: 180 },
       children: [
         new TextRun({
-          text: "WEEKLY TEACHING LOG SHEET & SUMMARY",
+          text: "WEEKLY TEACHING LOG SHEET",
           font: FONT_FAMILY,
           bold: true,
           size: 24, // 12pt
@@ -233,11 +233,12 @@ export async function buildWeeklyLogDocx(data: WeeklyReportData): Promise<Buffer
     { text: "Day & Date", width: 1500 },
     { text: "Time", width: 1200 },
     { text: "Topic Planned", width: 2200 },
-    { text: "Topic Completed (Actual)", width: 2300 },
+    { text: "Topic Completed", width: 2300 },
     { text: "Teaching Method", width: 1500 },
-    { text: "Assignment / Activity", width: 1400 },
-    { text: "Faculty Sign", width: 700 },
+    { text: "Assignment/Activity", width: 1400 },
+    { text: "Faculty Signature", width: 700 },
   ];
+
 
   const logHeaderRow = new TableRow({
     tableHeader: true,
@@ -396,15 +397,15 @@ export async function buildWeeklyLogDocx(data: WeeklyReportData): Promise<Buffer
     rows: [logHeaderRow, ...logDataRows],
   });
 
-  // 6. Weekly Summary Section (7 Official Sections)
+  // 6. Weekly Summary Section (7 Official Sections matching document.xml)
   const summaryHeader = new Paragraph({
     spacing: { before: 240, after: 120 },
     children: [
       new TextRun({
-        text: "WEEKLY TEACHING SUMMARY",
+        text: "Weekly Summary",
         font: FONT_FAMILY,
         bold: true,
-        size: 22,
+        size: 24,
         color: "1A237E",
       }),
     ],
@@ -414,12 +415,13 @@ export async function buildWeeklyLogDocx(data: WeeklyReportData): Promise<Buffer
   const summarySections = [
     { num: "1", title: "Syllabus Coverage This Week", content: summary?.syllabusCoverage },
     { num: "2", title: "Practical / Demonstration Conducted", content: summary?.practicalConducted },
-    { num: "3", title: "Assessment / Evaluation Conducted", content: summary?.assessmentConducted },
+    { num: "3", title: "Assessment Conducted", content: summary?.assessmentConducted },
     { num: "4", title: "Slow Learners Identified", content: summary?.slowLearners },
-    { num: "5", title: "Remedial Action Planned / Taken", content: summary?.remedialAction },
+    { num: "5", title: "Remedial Action Planned", content: summary?.remedialAction },
     { num: "6", title: "AI / Digital Tools Used", content: summary?.aiDigitalTools },
     { num: "7", title: "Industry Examples / Case Studies Discussed", content: summary?.industryExamples },
   ];
+
 
   const summaryParagraphs: Paragraph[] = [];
   summarySections.forEach((s) => {

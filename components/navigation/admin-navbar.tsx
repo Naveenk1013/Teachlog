@@ -31,11 +31,11 @@ const adminNavItems = [
   },
   {
     href: "/admin/logs",
-    label: "Weekly Logs",
+    label: "Weekly Logs & Reports Hub",
     icon: CalendarClock,
-    color: "text-blue-400",
-    badge: "Live",
-    badgeColor: "bg-blue-900/60 text-blue-300 border border-blue-700/50",
+    color: "text-indigo-400",
+    badge: "AI Powered",
+    badgeColor: "bg-indigo-900/60 text-indigo-300 border border-indigo-700/50",
   },
   {
     href: "/admin/attendance",
@@ -87,13 +87,8 @@ const adminNavItems = [
     icon: Calendar,
     color: "text-slate-400",
   },
-  {
-    href: "/reports",
-    label: "Reports (.docx)",
-    icon: FileSpreadsheet,
-    color: "text-slate-400",
-  },
 ];
+
 
 export function AdminNavbar() {
   const [isOpen, setIsOpen] = useState(false);

@@ -35,10 +35,10 @@ const navItems = [
   },
   {
     href: "/weekly-logs",
-    label: "Weekly Logs & Quick Editor",
+    label: "Weekly Logs & Reports Hub",
     icon: CalendarClock,
-    badge: "Active",
-    badgeColor: "bg-blue-100 text-blue-700",
+    badge: "AI Powered",
+    badgeColor: "bg-indigo-100 text-indigo-700",
   },
   {
     href: "/attendance",
@@ -53,19 +53,8 @@ const navItems = [
     icon: Calendar,
     badge: null,
   },
-  {
-    href: "/summaries",
-    label: "Weekly Summary (7 Sec)",
-    icon: FileText,
-    badge: null,
-  },
-  {
-    href: "/reports",
-    label: "Reports (.docx)",
-    icon: FileSpreadsheet,
-    badge: null,
-  },
 ];
+
 
 export function TeacherNavbar({ teacher }: TeacherNavbarProps) {
   const [isOpen, setIsOpen] = useState(false);

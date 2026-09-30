@@ -300,3 +300,144 @@ export async function getCohortAttendanceOverview(
   };
 }
 
+// ─────────────────────────────────────────────────────────────
+//  Detailed Register: full student × session matrix
+// ─────────────────────────────────────────────────────────────
+
+export interface DetailedAttendanceSession {
+  id: string;
+  sessionDate: string;
+  startTime: string;
+  subjectName: string;
+  teacherName: string;
+}
+
+export interface DetailedStudentRow {
+  rollNumber: string;
+  fullName: string;
+  section: string;
+  practicalGroup: string | null;
+  /** Map of sessionId → status char: "P" | "A" | "L" | "OD" | "-" */
+  sessionMarks: Record<string, string>;
+  totalClasses: number;
+  attendedClasses: number;
+  absentClasses: number;
+  lateClasses: number;
+  odClasses: number;
+  percentage: number;
+}
+
+export interface DetailedAttendanceMatrixResult {
+  batchId: string;
+  batchName: string;
+  isPractical: boolean;
+  group: string | null;
+  section: string | null;
+  sessions: DetailedAttendanceSession[];
+  students: DetailedStudentRow[];
+  generatedAt: string;
+}
+
+/**
+ * Builds a full student × session attendance matrix for detailed register exports.
+ * Each cell contains: P (present) | A (absent) | L (late) | OD | - (not recorded).
+ */
+export async function getDetailedAttendanceMatrix(
+  batchId: string
+): Promise<DetailedAttendanceMatrixResult | null> {
+  const adminClient = createAdminClient();
+
+  // 1. Get roster
+  const rosterInfo = await getStudentsForBatch(batchId);
+  if (!rosterInfo) return null;
+
+  // 2. Get all sessions oldest-first (left→right columns)
+  const { data: sessionRows, error: sessErr } = await adminClient
+    .from("class_sessions")
+    .select(`
+      id,
+      session_date,
+      start_time,
+      subjects(name),
+      profiles!class_sessions_teacher_id_fkey(full_name)
+    `)
+    .eq("batch_id", batchId)
+    .order("session_date", { ascending: true })
+    .order("start_time", { ascending: true });
+
+  if (sessErr) return null;
+
+  const sessions: DetailedAttendanceSession[] = (sessionRows || []).map((s: any) => ({
+    id: s.id,
+    sessionDate: s.session_date,
+    startTime: s.start_time || "",
+    subjectName: s.subjects?.name || "General",
+    teacherName: s.profiles?.full_name || "Faculty",
+  }));
+
+  const sessionIds = sessions.map((s) => s.id);
+
+  // 3. Fetch ALL individual attendance records
+  const rawMarks: Record<string, Record<string, string>> = {};
+  if (sessionIds.length > 0) {
+    const { data: attendanceRows } = await adminClient
+      .from("session_attendance")
+      .select("student_id, session_id, status")
+      .in("session_id", sessionIds);
+
+    for (const row of (attendanceRows || [])) {
+      if (!rawMarks[row.student_id]) rawMarks[row.student_id] = {};
+      rawMarks[row.student_id][row.session_id] =
+        row.status === "present" ? "P"
+        : row.status === "absent" ? "A"
+        : row.status === "late" ? "L"
+        : row.status === "od" ? "OD"
+        : "-";
+    }
+  }
+
+  // 4. Build per-student rows
+  const students: DetailedStudentRow[] = rosterInfo.students.map((student) => {
+    const marks = rawMarks[student.id] || {};
+    const sessionMarks: Record<string, string> = {};
+    let attended = 0, absent = 0, late = 0, od = 0;
+
+    for (const sess of sessions) {
+      const mark = marks[sess.id] ?? "-";
+      sessionMarks[sess.id] = mark;
+      if (mark === "P") attended++;
+      else if (mark === "A") absent++;
+      else if (mark === "L") { attended++; late++; }
+      else if (mark === "OD") { attended++; od++; }
+    }
+
+    const totalRecorded = attended + absent;
+    const effectiveTotal = totalRecorded > 0 ? totalRecorded : sessions.length;
+    const pct = effectiveTotal > 0 ? Math.round((attended / effectiveTotal) * 100) : 100;
+
+    return {
+      rollNumber: student.rollNumber,
+      fullName: student.fullName,
+      section: student.section,
+      practicalGroup: student.practicalGroup,
+      sessionMarks,
+      totalClasses: effectiveTotal,
+      attendedClasses: attended,
+      absentClasses: absent,
+      lateClasses: late,
+      odClasses: od,
+      percentage: pct,
+    };
+  });
+
+  return {
+    batchId: rosterInfo.batchId,
+    batchName: rosterInfo.batchName,
+    isPractical: rosterInfo.isPractical,
+    group: rosterInfo.group,
+    section: rosterInfo.section,
+    sessions,
+    students,
+    generatedAt: new Date().toISOString(),
+  };
+}

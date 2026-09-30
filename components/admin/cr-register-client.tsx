@@ -72,6 +72,12 @@ export function CRRegisterClient({
   const [editCRError, setEditCRError] = useState<string | null>(null);
   const [isEditCRLoading, setIsEditCRLoading] = useState(false);
 
+  // Helper: show success and auto-dismiss after 5s
+  function showSuccess(msg: string) {
+    setSuccessMessage(msg);
+    setTimeout(() => setSuccessMessage(null), 5000);
+  }
+
   const openCREditModal = (auth: CRAuthorisationItem) => {
     setEditCRTarget(auth);
     setEditCRName(auth.crName);
@@ -91,13 +97,14 @@ export function CRRegisterClient({
       userId: editCRTarget.crId,
       fullName: editCRName,
       email: editCREmail,
+      department: undefined, // CRs are students — they have no department field
       password: editCRPassword.trim() ? editCRPassword : undefined,
     });
 
     setIsEditCRLoading(false);
 
     if (res.success) {
-      setSuccessMessage(`Credentials updated for Class Representative "${editCRName}"!`);
+      showSuccess(`Credentials updated for Class Representative "${editCRName}"!`);
       setEditCRTarget(null);
     } else {
       setEditCRError(res.error || "Failed to update CR credentials.");

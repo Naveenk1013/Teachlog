@@ -49,12 +49,14 @@ export async function getAdminOverviewStats() {
     { count: totalTeachers },
     { count: activeCRs },
     { count: totalSessions },
+    { count: totalStudents },
   ] = await Promise.all([
     adminClient.from("batches").select("*", { count: "exact", head: true }),
     adminClient.from("subjects").select("*", { count: "exact", head: true }),
     adminClient.from("profiles").select("*", { count: "exact", head: true }).eq("role", "teacher"),
     adminClient.from("cr_authorisations").select("*", { count: "exact", head: true }).is("revoked_at", null),
     adminClient.from("class_sessions").select("*", { count: "exact", head: true }),
+    adminClient.from("students").select("*", { count: "exact", head: true }).eq("is_active", true),
   ]);
 
   return {
@@ -63,6 +65,7 @@ export async function getAdminOverviewStats() {
     totalTeachers: totalTeachers || 0,
     activeCRs: activeCRs || 0,
     totalSessions: totalSessions || 0,
+    totalStudents: totalStudents || 0,
   };
 }
 

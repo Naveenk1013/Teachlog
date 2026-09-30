@@ -11,6 +11,7 @@ import {
   Calendar,
   CalendarClock,
   ArrowRight,
+  GraduationCap,
 } from "lucide-react";
 
 export default async function AdminOverviewPage() {
@@ -34,7 +35,7 @@ export default async function AdminOverviewPage() {
       </div>
 
       {/* Real-time KPI Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
           <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
             Active Cohorts
@@ -67,12 +68,21 @@ export default async function AdminOverviewPage() {
           <span className="text-[10px] text-slate-400">Active Logging Rights</span>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs col-span-2 sm:col-span-1">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
           <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
             Class Sessions
           </span>
           <p className="text-2xl font-bold text-purple-600 mt-1">{stats.totalSessions}</p>
           <span className="text-[10px] text-slate-400">Logged to date</span>
+        </div>
+
+        {/* NEW: Total Students KPI */}
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 shadow-xs">
+          <span className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">
+            Students Enrolled
+          </span>
+          <p className="text-2xl font-bold text-amber-700 mt-1">{stats.totalStudents}</p>
+          <span className="text-[10px] text-amber-500">Active this year</span>
         </div>
       </div>
 

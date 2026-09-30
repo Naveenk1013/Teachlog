@@ -48,6 +48,7 @@ export function TeachersClient({ initialTeachers }: { initialTeachers: TeacherIt
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState(DEPARTMENTS[0]);
   const [password, setPassword] = useState("password123");
+  const [showPassword, setShowPassword] = useState(false);
 
   // Edit Credentials State
   const [editingTeacher, setEditingTeacher] = useState<TeacherItem | null>(null);
@@ -55,8 +56,19 @@ export function TeachersClient({ initialTeachers }: { initialTeachers: TeacherIt
   const [editEmail, setEditEmail] = useState("");
   const [editDepartment, setEditDepartment] = useState("");
   const [editPassword, setEditPassword] = useState("");
+  const [showEditPassword, setShowEditPassword] = useState(false);
   const [isEditLoading, setIsEditLoading] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  // Delete confirmation state
+  const [deleteConfirmTeacher, setDeleteConfirmTeacher] = useState<TeacherItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Helper: show success and auto-dismiss after 5s
+  function showSuccess(msg: string) {
+    setSuccessMessage(msg);
+    setTimeout(() => setSuccessMessage(null), 5000);
+  }
 
   const openEditModal = (t: TeacherItem) => {
     setEditingTeacher(t);
@@ -85,7 +97,7 @@ export function TeachersClient({ initialTeachers }: { initialTeachers: TeacherIt
     setIsEditLoading(false);
 
     if (res.success) {
-      setSuccessMessage(`Credentials updated successfully for "${editFullName}"!`);
+      showSuccess(`Credentials updated successfully for "${editFullName}"!`);
       setTeachers((prev) =>
         prev.map((t) =>
           t.id === editingTeacher.id
@@ -125,7 +137,7 @@ export function TeachersClient({ initialTeachers }: { initialTeachers: TeacherIt
     setIsLoading(false);
 
     if (res.success) {
-      setSuccessMessage(`Faculty member "${fullName}" created successfully! Initial password: ${password}`);
+      showSuccess(`Faculty member "${fullName}" created successfully!`);
       setTeachers((prev) => [
         {
           id: res.teacherId || Math.random().toString(),
@@ -141,6 +153,7 @@ export function TeachersClient({ initialTeachers }: { initialTeachers: TeacherIt
       setFullName("");
       setEmail("");
       setPassword("password123");
+      setShowPassword(false);
       setIsAddOpen(false);
     } else {
       setErrorMessage(res.error || "Failed to create teacher.");
@@ -154,25 +167,24 @@ export function TeachersClient({ initialTeachers }: { initialTeachers: TeacherIt
       setTeachers((prev) =>
         prev.map((t) => (t.id === teacherId ? { ...t, isActive: nextStatus } : t))
       );
+      showSuccess(nextStatus ? "Faculty account activated." : "Faculty account deactivated.");
     } else {
-      alert(res.error || "Failed to update status");
+      setErrorMessage(res.error || "Failed to update status");
     }
   }
 
-  async function handleDeleteTeacher(teacher: TeacherItem) {
-    if (
-      !confirm(
-        `Are you sure you want to permanently delete faculty member "${teacher.fullName}" (${teacher.email})?\n\nThis will remove their account, allocations, and associated data. This action cannot be undone.`
-      )
-    ) {
-      return;
-    }
-    const res = await deleteTeacherAction(teacher.id);
+  async function handleDeleteTeacher() {
+    if (!deleteConfirmTeacher) return;
+    setIsDeleting(true);
+    const res = await deleteTeacherAction(deleteConfirmTeacher.id);
+    setIsDeleting(false);
     if (res.success) {
-      setSuccessMessage(`Faculty member "${teacher.fullName}" was permanently deleted.`);
-      setTeachers((prev) => prev.filter((t) => t.id !== teacher.id));
+      showSuccess(`Faculty member "${deleteConfirmTeacher.fullName}" was permanently deleted.`);
+      setTeachers((prev) => prev.filter((t) => t.id !== deleteConfirmTeacher.id));
+      setDeleteConfirmTeacher(null);
     } else {
-      alert(res.error || "Failed to delete teacher account.");
+      setErrorMessage(res.error || "Failed to delete teacher account.");
+      setDeleteConfirmTeacher(null);
     }
   }
 
@@ -325,7 +337,7 @@ export function TeachersClient({ initialTeachers }: { initialTeachers: TeacherIt
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDeleteTeacher(teacher)}
+                          onClick={() => setDeleteConfirmTeacher(teacher)}
                           className="text-xs font-medium px-2.5 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors flex items-center gap-1"
                           title="Permanently Delete Teacher"
                         >
@@ -428,11 +440,18 @@ export function TeachersClient({ initialTeachers }: { initialTeachers: TeacherIt
                 <div className="relative">
                   <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
-                    type="text"
+                    type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-xs font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                    className="w-full pl-9 pr-16 py-2 text-xs font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-500 hover:text-slate-700"
+                  >
+                    {showPassword ? "HIDE" : "SHOW"}
+                  </button>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">
                   Default: password123. The faculty member can change this upon login.
@@ -546,12 +565,19 @@ export function TeachersClient({ initialTeachers }: { initialTeachers: TeacherIt
                 <div className="relative">
                   <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
-                    type="text"
+                    type={showEditPassword ? "text" : "password"}
                     placeholder="Leave blank to keep existing password unchanged"
                     value={editPassword}
                     onChange={(e) => setEditPassword(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-xs font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                    className="w-full pl-9 pr-16 py-2 text-xs font-mono border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowEditPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-500 hover:text-slate-700"
+                  >
+                    {showEditPassword ? "HIDE" : "SHOW"}
+                  </button>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">
                   Enter a new password (min 6 characters) to reset this user's password.
@@ -582,6 +608,52 @@ export function TeachersClient({ initialTeachers }: { initialTeachers: TeacherIt
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmTeacher && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-red-100 space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-900">Permanently Delete Faculty?</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  You are about to permanently delete{" "}
+                  <span className="font-semibold text-slate-800">{deleteConfirmTeacher.fullName}</span>{" "}
+                  (<span className="font-mono">{deleteConfirmTeacher.email}</span>).
+                </p>
+                <p className="text-xs text-red-600 font-medium mt-2">
+                  ⚠ This will remove their account, all allocations, and class logs. This cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmTeacher(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteTeacher}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors disabled:opacity-60"
+              >
+                {isDeleting ? (
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Deleting...</>
+                ) : (
+                  <><Trash2 className="w-3.5 h-3.5" /> Yes, Delete Permanently</>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

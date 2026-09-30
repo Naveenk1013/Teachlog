@@ -81,6 +81,8 @@ export function CascadingAttendanceForm({
 
   // 2. Secondary Fields
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
+  const [isCustomSubject, setIsCustomSubject] = useState<boolean>(false);
+  const [customSubjectName, setCustomSubjectName] = useState<string>("");
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
   const [date, setDate] = useState<string>(() => format(new Date(), "yyyy-MM-dd"));
   const [startTime, setStartTime] = useState<string>("09:00");
@@ -235,7 +237,7 @@ export function CascadingAttendanceForm({
         setRoster(studentList);
       } else {
         setRoster([]);
-        setErrorMessage("No students found registered for this specific cohort group.");
+        setErrorMessage("No students found registered for this specific semester / batch.");
       }
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to load student roster.");
@@ -270,6 +272,10 @@ export function CascadingAttendanceForm({
       setErrorMessage("Please select a subject.");
       return;
     }
+    if (selectedSubjectId === "__custom__" && (!customSubjectName || customSubjectName.trim().length < 2)) {
+      setErrorMessage("Please enter at least 2 characters for the custom subject name.");
+      return;
+    }
     if (!selectedTeacherId) {
       setErrorMessage("Please select a faculty member.");
       return;
@@ -283,6 +289,7 @@ export function CascadingAttendanceForm({
       const res = await createClassAttendanceSessionAction({
         batchId: resolvedBatchId,
         subjectId: selectedSubjectId,
+        customSubjectName: isCustomSubject ? customSubjectName.trim() : undefined,
         teacherId: selectedTeacherId,
         sessionDate: date,
         startTime,
@@ -357,7 +364,7 @@ export function CascadingAttendanceForm({
               </select>
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
-              Semester {targetSemester} Academic Cohort
+              Semester {targetSemester} Academic Batch
             </p>
           </div>
 
@@ -453,8 +460,16 @@ export function CascadingAttendanceForm({
             </label>
             <div className="relative">
               <select
-                value={selectedSubjectId}
-                onChange={(e) => setSelectedSubjectId(e.target.value)}
+                value={isCustomSubject ? "__custom__" : selectedSubjectId}
+                onChange={(e) => {
+                  if (e.target.value === "__custom__") {
+                    setIsCustomSubject(true);
+                    setSelectedSubjectId("__custom__");
+                  } else {
+                    setIsCustomSubject(false);
+                    setSelectedSubjectId(e.target.value);
+                  }
+                }}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 cursor-pointer"
               >
                 {filteredSubjects.map((s) => (
@@ -462,8 +477,23 @@ export function CascadingAttendanceForm({
                     {s.code ? `[${s.code}] ` : ""}{s.name}
                   </option>
                 ))}
+                <option value="__custom__">➕ Custom Subject (Enter Manually)...</option>
               </select>
             </div>
+
+            {/* Manual Custom Subject Text Input */}
+            {isCustomSubject && (
+              <div className="mt-2 animate-in fade-in">
+                <input
+                  type="text"
+                  required
+                  value={customSubjectName}
+                  onChange={(e) => setCustomSubjectName(e.target.value)}
+                  placeholder="Type custom subject name (e.g. Guest Lecture, Special Seminar)..."
+                  className="w-full bg-indigo-50/70 border border-indigo-200 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 transition-all shadow-xs"
+                />
+              </div>
+            )}
           </div>
 
           {/* Faculty Dropdown */}
@@ -585,7 +615,7 @@ export function CascadingAttendanceForm({
         {/* Action Button: Generate Attendance Sheet */}
         <div className="pt-2 flex items-center justify-between gap-4 flex-wrap border-t border-slate-100">
           <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-            <span>Target Cohort:</span>
+            <span>Target Semester / Batch:</span>
             <span className="font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
               {resolveTargetBatch ? resolveTargetBatch.name : "Select valid batch & section"}
             </span>
@@ -668,7 +698,7 @@ export function CascadingAttendanceForm({
           {/* Roster Cards Grid */}
           {roster.length === 0 ? (
             <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-500 text-xs">
-              No students enrolled in this cohort yet.
+              No students enrolled in this semester / batch yet.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-[440px] overflow-y-auto pr-1">

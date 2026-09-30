@@ -5,7 +5,7 @@ import { AlertCircle } from "lucide-react";
 
 export const metadata = {
   title: "Class Attendance Register | CR Portal",
-  description: "View and take student attendance for your assigned cohort.",
+  description: "View and take student attendance for your assigned semester and batch.",
 };
 
 export default async function CRAttendancePage() {
@@ -21,10 +21,10 @@ export default async function CRAttendancePage() {
       <div className="bg-amber-50 border border-amber-200 p-5 rounded-2xl text-amber-900 space-y-2">
         <div className="flex items-center gap-2 font-semibold text-sm text-amber-800">
           <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-          <span>No Active Cohort Authorisation</span>
+          <span>No Active Semester Authorisation</span>
         </div>
         <p className="text-xs text-amber-700 leading-relaxed">
-          You are not currently registered as an active Class Representative for any cohort. Please contact administration.
+          You are not currently registered as an active Class Representative for any semester / batch. Please contact administration.
         </p>
       </div>
     );

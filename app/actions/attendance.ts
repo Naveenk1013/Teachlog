@@ -436,6 +436,7 @@ export async function promoteStudentsAction(input: PromoteStudentsInput) {
 export interface CreateClassAttendanceSessionInput {
   batchId: string;
   subjectId: string;
+  customSubjectName?: string;
   teacherId: string;
   sessionDate: string;
   startTime: string;
@@ -477,6 +478,42 @@ export async function createClassAttendanceSessionAction(
     return { success: false, error: "Selected batch not found." };
   }
 
+  // 1b. Handle Custom Subject resolution
+  let resolvedSubjectId = input.subjectId;
+  if (input.subjectId === "__custom__" || (input.customSubjectName && input.customSubjectName.trim().length > 0)) {
+    const customName = (input.customSubjectName || "").trim();
+    if (customName.length < 2) {
+      return { success: false, error: "Please enter a valid custom subject name (at least 2 characters)." };
+    }
+
+    const { data: existingSub } = await adminClient
+      .from("subjects")
+      .select("id")
+      .ilike("name", customName)
+      .eq("semester", batch.current_semester)
+      .maybeSingle();
+
+    if (existingSub) {
+      resolvedSubjectId = existingSub.id;
+    } else {
+      const { data: newSub, error: subErr } = await adminClient
+        .from("subjects")
+        .insert({
+          programme_id: "11111111-1111-1111-1111-111111111111",
+          name: customName,
+          code: "CUSTOM",
+          semester: batch.current_semester,
+        })
+        .select("id")
+        .single();
+
+      if (subErr || !newSub) {
+        return { success: false, error: "Failed to register custom subject: " + (subErr?.message || "Unknown error") };
+      }
+      resolvedSubjectId = newSub.id;
+    }
+  }
+
   // 2. Count present students
   const records = input.attendanceRecords || [];
   const presentCount = records.length > 0
@@ -491,7 +528,7 @@ export async function createClassAttendanceSessionAction(
     .from("class_sessions")
     .insert({
       batch_id: input.batchId,
-      subject_id: input.subjectId,
+      subject_id: resolvedSubjectId,
       teacher_id: input.teacherId,
       semester: batch.current_semester,
       academic_year: batch.academic_year,

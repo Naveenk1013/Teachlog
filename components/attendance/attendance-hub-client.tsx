@@ -340,11 +340,11 @@ export function AttendanceHubClient({
         }}
       />
 
-      {/* Cohort Selector & Filter Bar */}
+      {/* Semester / Batch Selector & Filter Bar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-1">
           <GraduationCap className="w-4 h-4 text-slate-400 shrink-0" />
-          <span className="text-xs font-semibold text-slate-700 whitespace-nowrap">Cohort / Group:</span>
+          <span className="text-xs font-semibold text-slate-700 whitespace-nowrap">Semester / Batch:</span>
           <select
             value={selectedBatchId}
             onChange={(e) => setSelectedBatchId(e.target.value)}
@@ -352,7 +352,7 @@ export function AttendanceHubClient({
           >
             {batches.map((b) => (
               <option key={b.id} value={b.id}>
-                {b.name} (Sem {b.currentSemester})
+                {b.name.replace(/^Intake\s+/i, "Batch ")} (Sem {b.currentSemester})
               </option>
             ))}
           </select>

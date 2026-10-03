@@ -83,7 +83,7 @@ export async function POST(request: Request) {
         verified_at: new Date().toISOString(),
         semester: batch.current_semester || 1,
         academic_year: batch.academic_year || "2026-27",
-        logged_by: user.id,
+        entered_by: user.id,
       })
       .select("id")
       .single();

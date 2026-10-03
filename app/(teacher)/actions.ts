@@ -279,7 +279,7 @@ export async function teacherCreateClassSessionAction(params: {
       verified_at: new Date().toISOString(),
       semester: batch.current_semester || 1,
       academic_year: batch.academic_year || "2026-27",
-      logged_by: teacher.id,
+      entered_by: teacher.id,
     })
     .select("id")
     .single();

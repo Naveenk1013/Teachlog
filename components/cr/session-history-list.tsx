@@ -15,6 +15,7 @@ import {
   X,
   AlertCircle,
   Save,
+  Search,
 } from "lucide-react";
 
 interface Props {
@@ -24,6 +25,8 @@ interface Props {
 export function SessionHistoryList({ sessions }: Props) {
   const [editingSession, setEditingSession] = useState<CRSessionItem | null>(null);
   const [updateState, updateAction, isUpdating] = useActionState(updateClassSessionAction, null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "submitted" | "verified">("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleEditOpen = (session: CRSessionItem) => {
     setEditingSession(session);
@@ -41,14 +44,111 @@ export function SessionHistoryList({ sessions }: Props) {
         </div>
         <h3 className="text-base font-semibold text-slate-800">No Sessions Logged Yet</h3>
         <p className="text-xs text-slate-500 max-w-xs mx-auto">
-          Classes recorded for your cohort will appear here with verification status and a 24-hour correction window.
+          Classes recorded for your batch will appear here with verification status and a 24-hour correction window.
         </p>
       </div>
     );
   }
 
+  const filteredSessions = sessions.filter((s) => {
+    if (statusFilter !== "all" && s.status !== statusFilter) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchSubject = s.subjectName.toLowerCase().includes(q) || (s.subjectCode && s.subjectCode.toLowerCase().includes(q));
+      const matchTeacher = s.teacherName.toLowerCase().includes(q);
+      const matchTopic = s.topicCovered.toLowerCase().includes(q);
+      if (!matchSubject && !matchTeacher && !matchTopic) return false;
+    }
+    return true;
+  });
+
+  const verifiedCount = sessions.filter((s) => s.status === "verified").length;
+  const pendingCount = sessions.length - verifiedCount;
+
   return (
     <div className="space-y-3">
+      {/* Search & Filter Controls */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-3 shadow-xs space-y-2.5">
+        <div className="flex flex-col sm:flex-row gap-2">
+          {/* Search Input */}
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search by topic, subject, or faculty..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Status Tabs */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0">
+            <button
+              type="button"
+              onClick={() => setStatusFilter("all")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                statusFilter === "all"
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              All ({sessions.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("submitted")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                statusFilter === "submitted"
+                  ? "bg-white text-amber-700 shadow-xs"
+                  : "text-slate-600 hover:text-amber-700"
+              }`}
+            >
+              Pending ({pendingCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("verified")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                statusFilter === "verified"
+                  ? "bg-white text-emerald-700 shadow-xs"
+                  : "text-slate-600 hover:text-emerald-700"
+              }`}
+            >
+              Verified ({verifiedCount})
+            </button>
+          </div>
+        </div>
+
+        {/* Filter Summary */}
+        <div className="text-[11px] text-slate-500 px-1 flex items-center justify-between">
+          <span>
+            Showing <strong>{filteredSessions.length}</strong> of {sessions.length} entries
+          </span>
+          {(statusFilter !== "all" || searchQuery) && (
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter("all");
+                setSearchQuery("");
+              }}
+              className="text-indigo-600 hover:text-indigo-800 font-semibold"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Update feedback banner */}
       {updateState?.error && (
         <div className="p-3 rounded-xl bg-red-50 border border-red-200 flex items-center gap-2 text-red-700 text-xs shadow-xs">
@@ -57,8 +157,15 @@ export function SessionHistoryList({ sessions }: Props) {
         </div>
       )}
 
+      {/* Empty Filtered Results State */}
+      {filteredSessions.length === 0 && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center shadow-xs text-xs text-slate-500">
+          No class entries match your current filter.
+        </div>
+      )}
+
       {/* Sessions List */}
-      {sessions.map((session) => {
+      {filteredSessions.map((session) => {
         const isCurrentlyEditing = editingSession?.id === session.id;
 
         return (

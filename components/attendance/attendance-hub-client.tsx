@@ -418,7 +418,7 @@ export function AttendanceHubClient({
           <span className="text-2xl font-bold text-emerald-600 mt-1 block">
             {overview?.averageAttendancePct || 100}%
           </span>
-          <span className="text-[10px] text-emerald-700 mt-1 block font-medium">Cohort overall average</span>
+          <span className="text-[10px] text-emerald-700 mt-1 block font-medium">Batch overall average</span>
         </div>
 
         <div
@@ -446,7 +446,7 @@ export function AttendanceHubClient({
       {isLoading ? (
         <div className="py-20 bg-white rounded-2xl border border-slate-200/80 flex flex-col items-center justify-center text-slate-400 gap-2">
           <Loader2 className="w-7 h-7 animate-spin text-indigo-600" />
-          <span className="text-xs font-semibold">Loading cohort attendance register...</span>
+          <span className="text-xs font-semibold">Loading batch attendance register...</span>
         </div>
       ) : activeTab === "register" ? (
         /* Tab 1: Session Register */
@@ -455,7 +455,7 @@ export function AttendanceHubClient({
             <div>
               <h2 className="text-sm font-bold text-slate-900">Class Session Attendance Log</h2>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                Each session conducted for this cohort with attendance headcount and roster editing access.
+                Each session conducted for this batch with attendance headcount and roster editing access.
               </p>
             </div>
           </div>
@@ -477,7 +477,7 @@ export function AttendanceHubClient({
                 {!overview || overview.sessions.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-12 text-center text-slate-400">
-                      No class sessions recorded for this cohort yet.
+                      No class sessions recorded for this batch yet.
                     </td>
                   </tr>
                 ) : (
@@ -591,7 +591,7 @@ export function AttendanceHubClient({
                 <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[10px]">
                   <th className="py-3 px-4">Roll Number</th>
                   <th className="py-3 px-4">Student Name</th>
-                  <th className="py-3 px-4">Cohort / Group</th>
+                  <th className="py-3 px-4">Batch / Group</th>
                   <th className="py-3 px-4 text-center">Total Held</th>
                   <th className="py-3 px-4 text-center">Attended</th>
                   <th className="py-3 px-4 text-center">Absent</th>

@@ -45,7 +45,7 @@ export function LogClassForm({ batch, assignments, subjects, teachers }: Props) 
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const minDateStr = format(subDays(new Date(), 2), "yyyy-MM-dd");
 
-  // Determine available subjects for this cohort
+  // Determine available subjects for this batch
   const availableSubjects = (subjects && subjects.length > 0)
     ? subjects
     : assignments.map((a) => ({
@@ -134,6 +134,15 @@ export function LogClassForm({ batch, assignments, subjects, teachers }: Props) 
     };
   }, [batch?.id]);
 
+  useEffect(() => {
+    if (state?.success) {
+      setTopicCovered("");
+      setRoster((prev) => prev.map((s) => ({ ...s, status: "present" })));
+      setStudentsPresent(batch.class_strength);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [state?.success, batch.class_strength]);
+
   const toggleStudentStatus = (studentId: string, newStatus: "present" | "absent" | "late" | "od") => {
     setRoster((prev) => {
       const updated = prev.map((s) => (s.studentId === studentId ? { ...s, status: newStatus } : s));
@@ -206,9 +215,9 @@ export function LogClassForm({ batch, assignments, subjects, teachers }: Props) 
         {/* Hidden input for batch */}
         <input type="hidden" name="batchId" value={batch.id} />
 
-        {/* Cohort Info Pill */}
+        {/* Batch Info Pill */}
         <div className="flex items-center justify-between text-xs bg-slate-50 border border-slate-200/80 rounded-xl px-3 py-2 text-slate-600">
-          <span className="font-medium">Cohort: {batch.name}</span>
+          <span className="font-medium">Batch: {batch.name}</span>
           <span className="text-indigo-600 font-semibold">Semester {batch.current_semester}</span>
         </div>
 

@@ -95,10 +95,10 @@ export function UnifiedLogsHub({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeDayFilter, setActiveDayFilter] = useState<string>("all");
 
-  // Filter selections
+  // Filter selections (empty string means All Batches / All Subjects for full semester coverage)
   const currentTeacherId = searchParams.get("teacherId") || "";
-  const currentBatchId = searchParams.get("batchId") || data.batches[0]?.id || "";
-  const currentSubjectId = searchParams.get("subjectId") || data.subjects[0]?.id || "";
+  const currentBatchId = searchParams.get("batchId") || "";
+  const currentSubjectId = searchParams.get("subjectId") || "";
   const currentWeekStart = data.selectedWeekStart;
 
   // Selected batch & subject objects for display
@@ -305,8 +305,8 @@ export function UnifiedLogsHub({
       const res = await aiOneClickGenerateDocxAction({
         weekStart: currentWeekStart,
         semester: selectedBatch?.currentSemester || 1,
-        batchId: currentBatchId,
-        subjectId: currentSubjectId,
+        batchId: currentBatchId ? currentBatchId : undefined,
+        subjectId: currentSubjectId ? currentSubjectId : undefined,
         teacherId: currentTeacherId || (currentUserRole === "teacher" ? currentUserId : undefined),
       });
 
@@ -344,8 +344,8 @@ export function UnifiedLogsHub({
       const res = await aiEnrichWeekLogsAction({
         weekStart: currentWeekStart,
         semester: selectedBatch?.currentSemester || 1,
-        batchId: currentBatchId,
-        subjectId: currentSubjectId,
+        batchId: currentBatchId ? currentBatchId : undefined,
+        subjectId: currentSubjectId ? currentSubjectId : undefined,
         teacherId: currentTeacherId || (currentUserRole === "teacher" ? currentUserId : undefined),
       });
 
@@ -373,8 +373,8 @@ export function UnifiedLogsHub({
       const res = await aiGenerateWeekSummaryAction({
         weekStart: currentWeekStart,
         semester: selectedBatch?.currentSemester || 1,
-        batchId: currentBatchId,
-        subjectId: currentSubjectId,
+        batchId: currentBatchId ? currentBatchId : undefined,
+        subjectId: currentSubjectId ? currentSubjectId : undefined,
         teacherId: currentTeacherId || (currentUserRole === "teacher" ? currentUserId : undefined),
       });
 
@@ -475,6 +475,8 @@ export function UnifiedLogsHub({
 
   const currentSem = selectedBatch?.currentSemester || 1;
   const officialDocxUrl = `/api/reports/weekly-log?weekStart=${currentWeekStart}&semester=${currentSem}${
+    currentBatchId ? `&batchId=${currentBatchId}` : ""
+  }${currentSubjectId ? `&subjectId=${currentSubjectId}` : ""}${
     currentTeacherId ? `&teacherId=${currentTeacherId}` : ""
   }`;
 

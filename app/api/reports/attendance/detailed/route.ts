@@ -29,7 +29,7 @@ export async function GET(request: Request) {
   const matrix = await getDetailedAttendanceMatrix(batchId);
   if (!matrix) {
     return NextResponse.json(
-      { error: "Cohort not found or no data available." },
+      { error: "Batch not found or no data available." },
       { status: 404 }
     );
   }

@@ -222,3 +222,103 @@ export async function getCRRecentSessions(batchId: string): Promise<CRSessionIte
     };
   });
 }
+
+export interface CRDashboardStats {
+  totalSessionsThisWeek: number;
+  verifiedThisWeek: number;
+  pendingThisWeek: number;
+  totalSessionsAllTime: number;
+  todaySessions: {
+    id: string;
+    subjectName: string;
+    subjectCode: string | null;
+    teacherName: string;
+    startTime: string;
+    endTime: string;
+    topicCovered: string;
+    status: "submitted" | "verified";
+  }[];
+  recentSessions: {
+    id: string;
+    sessionDate: string;
+    subjectName: string;
+    teacherName: string;
+    status: "submitted" | "verified";
+  }[];
+}
+
+export async function getCRDashboardStats(batchId: string): Promise<CRDashboardStats> {
+  const adminClient = createAdminClient();
+
+  // Get start of current week (Monday)
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + mondayOffset);
+  const weekStart = monday.toISOString().slice(0, 10);
+  const todayStr = now.toISOString().slice(0, 10);
+
+  // Fetch this week's sessions
+  const { data: weekSessions } = await adminClient
+    .from("class_sessions")
+    .select(`
+      id,
+      session_date,
+      start_time,
+      end_time,
+      topic_covered,
+      status,
+      subjects(name, code),
+      profiles!class_sessions_teacher_id_fkey(full_name)
+    `)
+    .eq("batch_id", batchId)
+    .gte("session_date", weekStart)
+    .order("session_date", { ascending: false })
+    .order("start_time", { ascending: true });
+
+  const sessions = weekSessions || [];
+
+  const totalSessionsThisWeek = sessions.length;
+  const verifiedThisWeek = sessions.filter((s: any) => s.status === "verified").length;
+  const pendingThisWeek = totalSessionsThisWeek - verifiedThisWeek;
+
+  // Today's sessions
+  const todaySessions = sessions
+    .filter((s: any) => s.session_date === todayStr)
+    .map((s: any) => ({
+      id: s.id,
+      subjectName: s.subjects?.name || "Unknown",
+      subjectCode: s.subjects?.code || null,
+      teacherName: s.profiles?.full_name || "Faculty",
+      startTime: s.start_time.slice(0, 5),
+      endTime: s.end_time.slice(0, 5),
+      topicCovered: s.topic_covered || "",
+      status: s.status as "submitted" | "verified",
+    }));
+
+  // Total all-time count
+  const { count: totalCount } = await adminClient
+    .from("class_sessions")
+    .select("id", { count: "exact", head: true })
+    .eq("batch_id", batchId);
+
+  // Recent 5 sessions for quick preview
+  const recentSessions = sessions.slice(0, 5).map((s: any) => ({
+    id: s.id,
+    sessionDate: s.session_date,
+    subjectName: s.subjects?.name || "Unknown",
+    teacherName: s.profiles?.full_name || "Faculty",
+    status: s.status as "submitted" | "verified",
+  }));
+
+  return {
+    totalSessionsThisWeek,
+    verifiedThisWeek,
+    pendingThisWeek,
+    totalSessionsAllTime: totalCount || 0,
+    todaySessions,
+    recentSessions,
+  };
+}
+

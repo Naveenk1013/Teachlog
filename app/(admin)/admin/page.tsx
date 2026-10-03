@@ -29,7 +29,7 @@ export default async function AdminOverviewPage() {
             Institute Master Data &amp; Controls
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Manage cohort authorisations, view immutable audit trails, and export official teaching logs.
+            Manage batch authorisations, view immutable audit trails, and export official teaching logs.
           </p>
         </div>
       </div>
@@ -38,7 +38,7 @@ export default async function AdminOverviewPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
           <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-            Active Cohorts
+            Active Batches
           </span>
           <p className="text-2xl font-bold text-slate-900 mt-1">{stats.totalBatches}</p>
           <span className="text-[10px] text-slate-400">Enrolled Batches</span>
@@ -163,7 +163,7 @@ export default async function AdminOverviewPage() {
             <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
           </h3>
           <p className="text-sm text-slate-500 mt-1">
-            Allocate faculty members to specific subjects, student cohorts, and academic years.
+            Allocate faculty members to specific subjects, student batches, and academic years.
           </p>
           <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
             <span className="text-slate-400">Faculty Assignments</span>
@@ -179,14 +179,14 @@ export default async function AdminOverviewPage() {
             <Calendar className="w-5 h-5" />
           </div>
           <h3 className="text-base font-semibold text-slate-900 group-hover:text-cyan-600 transition-colors flex items-center justify-between">
-            <span>Student Batches &amp; Cohorts</span>
+            <span>Student Batches</span>
             <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
           </h3>
           <p className="text-sm text-slate-500 mt-1">
-            Register new intake cohorts, manage current active semesters, and track class strengths.
+            Register new batches, manage current active semesters, and track class strengths.
           </p>
           <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span className="text-slate-400">Cohort Management</span>
+            <span className="text-slate-400">Batch Management</span>
             <span className="font-semibold text-cyan-600">Manage Batches →</span>
           </div>
         </Link>

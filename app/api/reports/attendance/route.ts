@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   const overview = await getCohortAttendanceOverview(batchId);
   if (!overview) {
     return NextResponse.json(
-      { error: "Cohort not found or no attendance data available." },
+      { error: "Batch not found or no attendance data available." },
       { status: 404 }
     );
   }

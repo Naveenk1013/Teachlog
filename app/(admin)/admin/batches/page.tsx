@@ -4,7 +4,7 @@ import { getAllBatches, getAllProgrammes } from "@/lib/data/admin";
 import { BatchesClient } from "@/components/admin/batches-client";
 
 export const metadata = {
-  title: "Student Batches & Cohorts | TeachLog Admin",
+  title: "Student Batches | TeachLog Admin",
 };
 
 export default async function AdminBatchesPage() {

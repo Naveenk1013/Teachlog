@@ -4,7 +4,7 @@ import { CRNavbar } from "@/components/navigation/cr-navbar";
 
 export default async function CRLayout({ children }: { children: ReactNode }) {
   const user = await getCurrentCRUser();
-  let batchName = "Authorized Cohort";
+  let batchName = "Authorized Batch";
 
   if (user) {
     const { batch } = await getCRBatchAndAssignments(user.id);

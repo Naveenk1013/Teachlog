@@ -5,8 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logoutAction } from "@/app/(auth)/login/actions";
 import {
+  LayoutDashboard,
   PenSquare,
-  CalendarClock,
   History,
   Users,
   Calendar,
@@ -27,18 +27,18 @@ interface CRNavbarProps {
 
 const crNavItems = [
   {
+    href: "/cr",
+    label: "Dashboard",
+    shortLabel: "Dashboard",
+    icon: LayoutDashboard,
+    color: "text-slate-600",
+  },
+  {
     href: "/cr/log",
     label: "Log Class Session",
     shortLabel: "Log Class",
     icon: PenSquare,
     color: "text-indigo-600",
-  },
-  {
-    href: "/cr/logs",
-    label: "Weekly Logs & Topics",
-    shortLabel: "Weekly Logs",
-    icon: CalendarClock,
-    color: "text-blue-600",
   },
   {
     href: "/cr/history",
@@ -49,7 +49,7 @@ const crNavItems = [
   },
   {
     href: "/cr/attendance",
-    label: "Cohort Attendance",
+    label: "Batch Attendance",
     shortLabel: "Attendance",
     icon: Users,
     color: "text-emerald-600",

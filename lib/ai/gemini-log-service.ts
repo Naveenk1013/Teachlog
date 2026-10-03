@@ -45,7 +45,7 @@ export interface WeeklySummaryAIResult {
  * Crafts realistic, professional hospitality teaching logs and summaries
  * based strictly on the user's logged topics.
  */
-function generateAcademicSessionEnrichment(session: SessionToEnrich): EnrichedSessionResult {
+export function generateAcademicSessionEnrichment(session: SessionToEnrich): EnrichedSessionResult {
   const topic = session.topicCovered || session.topicPlanned || "Core Syllabus Module";
   const topicLower = topic.toLowerCase();
   const isPractical =
@@ -59,7 +59,7 @@ function generateAcademicSessionEnrichment(session: SessionToEnrich): EnrichedSe
     topicLower.includes("preparation");
 
   let teachingMethod = session.teachingMethod;
-  if (!teachingMethod || teachingMethod.trim() === "" || teachingMethod === "Lecture") {
+  if (!teachingMethod || teachingMethod.trim() === "" || teachingMethod === "Lecture" || teachingMethod === "null") {
     if (isPractical) {
       teachingMethod = "Demonstration & Guided Hands-on Practical Training";
     } else if (topicLower.includes("case") || topicLower.includes("law") || topicLower.includes("management")) {
@@ -72,7 +72,7 @@ function generateAcademicSessionEnrichment(session: SessionToEnrich): EnrichedSe
   }
 
   let assignmentActivity = session.assignmentActivity;
-  if (!assignmentActivity || assignmentActivity.trim() === "" || assignmentActivity === "—") {
+  if (!assignmentActivity || assignmentActivity.trim() === "" || assignmentActivity === "—" || assignmentActivity === "null") {
     if (isPractical) {
       assignmentActivity = `Individual Standard Operating Procedure (SOP) Drill & Workstation Cleanliness on ${topic}`;
     } else if (topicLower.includes("cost") || topicLower.includes("recipe") || topicLower.includes("menu")) {
@@ -93,7 +93,7 @@ function generateAcademicSessionEnrichment(session: SessionToEnrich): EnrichedSe
   };
 }
 
-function generateAcademicSummary(
+export function generateAcademicSummary(
   subjectName: string,
   batchName: string,
   semester: number,

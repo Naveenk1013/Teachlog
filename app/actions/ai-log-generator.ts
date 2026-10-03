@@ -48,10 +48,10 @@ export async function aiEnrichWeekLogsAction(params: {
     .gte("session_date", params.weekStart)
     .lte("session_date", endStr);
 
-  if (params.semester) {
-    query = query.eq("semester", Number(params.semester));
-  } else if (params.batchId && params.batchId !== "all") {
+  if (params.batchId && params.batchId !== "all") {
     query = query.eq("batch_id", params.batchId);
+  } else if (params.semester) {
+    query = query.eq("semester", Number(params.semester));
   }
 
   if (params.subjectId && params.subjectId !== "all") {
@@ -158,10 +158,10 @@ export async function aiGenerateWeekSummaryAction(params: {
     .gte("session_date", params.weekStart)
     .lte("session_date", endStr);
 
-  if (params.semester) {
-    query = query.eq("semester", Number(params.semester));
-  } else if (params.batchId && params.batchId !== "all") {
+  if (params.batchId && params.batchId !== "all") {
     query = query.eq("batch_id", params.batchId);
+  } else if (params.semester) {
+    query = query.eq("semester", Number(params.semester));
   }
 
   if (params.subjectId && params.subjectId !== "all") {

@@ -61,7 +61,7 @@ export async function saveSessionAttendanceAction(
       .maybeSingle();
 
     if (!crAuth && session.entered_by !== user.id) {
-      return { success: false, error: "Unauthorized. You can only mark attendance for your assigned cohort." };
+      return { success: false, error: "Unauthorized. You can only mark attendance for your assigned batch." };
     }
   } else if (!isAdmin && !isTeacher) {
     return { success: false, error: "Unauthorized. Faculty or administrator privileges required." };
@@ -155,7 +155,7 @@ export async function getSessionAttendanceAction(sessionId: string) {
 }
 
 /**
- * Fetch cohort attendance overview and student statistics
+ * Fetch batch attendance overview and student statistics
  */
 export async function getCohortAttendanceOverviewAction(batchId: string) {
   const user = await getCurrentAppUser();

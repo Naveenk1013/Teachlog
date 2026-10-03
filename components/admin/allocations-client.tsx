@@ -132,7 +132,7 @@ export function AllocationsClient({
             Faculty Teaching Allocations
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Assign teaching faculty to academic subjects and student cohorts. Multiple teachers can be assigned to parallel sections.
+            Assign teaching faculty to academic subjects and student batches. Multiple teachers can be assigned to parallel sections.
           </p>
         </div>
 
@@ -161,7 +161,7 @@ export function AllocationsClient({
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search by faculty, subject name, code, or cohort..."
+            placeholder="Search by faculty, subject name, code, or batch..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
@@ -190,7 +190,7 @@ export function AllocationsClient({
               <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[10px]">
                 <th className="py-3 px-4">Faculty Member</th>
                 <th className="py-3 px-4">Subject & Code</th>
-                <th className="py-3 px-4">Student Cohort / Batch</th>
+                <th className="py-3 px-4">Student Batch</th>
                 <th className="py-3 px-4 text-center">Academic Year</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
@@ -318,7 +318,7 @@ export function AllocationsClient({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Select Cohort / Batch *
+                  Select Batch *
                 </label>
                 <select
                   value={selectedBatchId}

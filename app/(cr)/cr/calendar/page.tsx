@@ -56,7 +56,7 @@ export default async function CRCalendarPage({ searchParams }: CRCalendarPagePro
       <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <span className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider">
-            Cohort Schedule &amp; Log Explorer
+            Batch Schedule &amp; Log Explorer
           </span>
           <h1 className="text-xl font-bold text-slate-900 mt-0.5">
             Academic Calendar • {batch.name}

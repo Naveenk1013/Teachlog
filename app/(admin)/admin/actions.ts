@@ -33,7 +33,7 @@ export async function grantCRAuthorisationAction(
     .maybeSingle();
 
   if (existingSelf) {
-    return { success: false, error: "This student is already an active Class Representative for this cohort." };
+    return { success: false, error: "This student is already an active Class Representative for this batch." };
   }
 
   // 1. If replaceExisting is true, revoke existing active authorizations for this batch
@@ -105,7 +105,7 @@ export async function createStudentAndGrantCRAction(data: {
   }
 
   if (!batchId || !academicYear) {
-    return { success: false, error: "Target cohort/batch and academic year are required." };
+    return { success: false, error: "Target batch and academic year are required." };
   }
 
   const adminClient = createAdminClient();
@@ -163,7 +163,7 @@ export async function createStudentAndGrantCRAction(data: {
       .maybeSingle();
 
     if (existingActive) {
-      return { success: false, error: "This student is already an active Class Representative for this cohort." };
+      return { success: false, error: "This student is already an active Class Representative for this batch." };
     }
 
     // 4. Revoke previous if requested
@@ -618,7 +618,7 @@ export async function deleteBatchAction(batchId: string) {
     // 4. Delete the batch
     const { error } = await adminClient.from("batches").delete().eq("id", batchId);
     if (error) {
-      return { success: false, error: "Failed to delete cohort/batch: " + error.message };
+      return { success: false, error: "Failed to delete batch: " + error.message };
     }
 
     // 5. Audit log
@@ -928,7 +928,7 @@ export async function removeTeachingAssignmentAction(assignmentId: string) {
 }
 
 // ─────────────────────────────────────────────
-// Batch / Cohort Management Actions
+// Batch Management Actions
 // ─────────────────────────────────────────────
 
 export async function createBatchAction(data: {
@@ -1148,7 +1148,7 @@ export async function quickUpdateSessionAction(data: {
     }
 
     if (!isAuthorisedCR) {
-      return { success: false, error: "Unauthorized. You can only edit class sessions for your assigned cohort." };
+      return { success: false, error: "Unauthorized. You can only edit class sessions for your assigned batch." };
     }
   } else if (!isAdmin && !isTeacher) {
     return { success: false, error: "Unauthorized. You do not have permission to modify this class session." };

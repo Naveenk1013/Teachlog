@@ -59,9 +59,10 @@ export function getTeachingWeekDays(weekStart: Date | string): { date: Date; dat
  */
 export function isWithinCRDateLimit(sessionDate: Date | string): boolean {
   const now = getNowInIST();
-  const date = typeof sessionDate === "string" ? parseISO(sessionDate) : sessionDate;
-  const twoDaysAgo = subDays(now, 2);
-  return isWithinInterval(date, { start: twoDaysAgo, end: now });
+  const todayStr = format(now, "yyyy-MM-dd");
+  const minDateStr = format(subDays(now, 2), "yyyy-MM-dd");
+  const targetStr = typeof sessionDate === "string" ? sessionDate.slice(0, 10) : format(sessionDate, "yyyy-MM-dd");
+  return targetStr >= minDateStr && targetStr <= todayStr;
 }
 
 /**

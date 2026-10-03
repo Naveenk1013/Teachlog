@@ -65,7 +65,7 @@ const adminNavItems = [
   },
   {
     href: "/admin/batches",
-    label: "Batches & Cohorts",
+    label: "Batches",
     icon: Layers,
     color: "text-cyan-400",
   },

@@ -121,7 +121,7 @@ export function CRRegisterClient({
         return;
       }
       if (!selectedBatchId || !academicYear) {
-        setError("Please select a target cohort/batch.");
+        setError("Please select a target batch.");
         return;
       }
 
@@ -147,7 +147,7 @@ export function CRRegisterClient({
       });
     } else {
       if (!selectedStudentId || !selectedBatchId || !academicYear) {
-        setError("Please select both a student and cohort.");
+        setError("Please select both a student and batch.");
         return;
       }
 
@@ -239,7 +239,7 @@ export function CRRegisterClient({
             Class Representative Authorisation Register
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Register new student CRs or assign cohorts. Active CRs can log teaching sessions for their assigned cohort.
+            Register new student CRs or assign batches. Active CRs can log teaching sessions for their assigned batch.
           </p>
         </div>
 
@@ -279,7 +279,7 @@ export function CRRegisterClient({
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[10px]">
                 <th className="py-3 px-4">Representative</th>
-                <th className="py-3 px-4">Cohort / Batch</th>
+                <th className="py-3 px-4">Batch</th>
                 <th className="py-3 px-4">Academic Year</th>
                 <th className="py-3 px-4">Granted Metadata</th>
                 <th className="py-3 px-4">Status</th>
@@ -537,7 +537,7 @@ export function CRRegisterClient({
               {/* Target Batch */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-800 block">
-                  Assign Cohort / Batch *
+                  Assign Batch *
                 </label>
                 <select
                   value={selectedBatchId}
@@ -581,10 +581,10 @@ export function CRRegisterClient({
                   />
                   <div className="text-xs">
                     <span className="font-semibold text-slate-800 block">
-                      Replace previous active CR for this cohort
+                      Replace previous active CR for this batch
                     </span>
                     <span className="text-[11px] text-slate-500 block">
-                      Leave unchecked if this student is a co-CR (multiple CRs can log for the same cohort).
+                      Leave unchecked if this student is a co-CR (multiple CRs can log for the same batch).
                     </span>
                   </div>
                 </label>
@@ -651,7 +651,7 @@ export function CRRegisterClient({
 
               <p className="text-xs text-slate-600">
                 You are about to revoke CR logging access for{" "}
-                <strong className="text-slate-900">{revokeTarget.crName}</strong> on cohort{" "}
+                <strong className="text-slate-900">{revokeTarget.crName}</strong> on batch{" "}
                 <strong className="text-slate-900">{revokeTarget.batchName}</strong>. The student will immediately lose all logging permissions.
               </p>
 

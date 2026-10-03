@@ -17,7 +17,7 @@ export default async function CRHistoryPage() {
       <div className="bg-amber-50 border border-amber-200 p-5 rounded-2xl text-amber-900 space-y-2">
         <div className="flex items-center gap-2 font-semibold text-sm text-amber-800">
           <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
-          <span>No Active Cohort</span>
+          <span>No Active Batch</span>
         </div>
         <p className="text-xs text-amber-700">
           You are not currently authorized as a Class Representative for an active batch.

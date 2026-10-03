@@ -287,7 +287,7 @@ export function BatchesClient({
 
     if (res.success) {
       const progName = programmes.find((p) => p.id === programmeId)?.name || "BHM";
-      setSuccessMessage(`Cohort / Batch "${finalName}" registered successfully!`);
+      setSuccessMessage(`Batch "${finalName}" registered successfully!`);
       setBatches((prev) => [
         {
           id: res.batchId || Math.random().toString(),
@@ -312,17 +312,17 @@ export function BatchesClient({
   async function handleDeleteBatch(batch: BatchItem) {
     if (
       !confirm(
-        `Are you sure you want to permanently delete cohort "${batch.name}"?\n\nThis will remove this batch, related teaching assignments, CR authorisations, academic events, and linked class sessions. This action CANNOT be undone.`
+        `Are you sure you want to permanently delete batch "${batch.name}"?\n\nThis will remove this batch, related teaching assignments, CR authorisations, academic events, and linked class sessions. This action CANNOT be undone.`
       )
     ) {
       return;
     }
     const res = await deleteBatchAction(batch.id);
     if (res.success) {
-      setSuccessMessage(`Cohort "${batch.name}" was permanently deleted.`);
+      setSuccessMessage(`Batch "${batch.name}" was permanently deleted.`);
       setBatches((prev) => prev.filter((b) => b.id !== batch.id));
     } else {
-      alert(res.error || "Failed to delete cohort/batch.");
+      alert(res.error || "Failed to delete batch.");
     }
   }
 
@@ -391,7 +391,7 @@ export function BatchesClient({
             Student Batches, Sections & Groups
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Manage semester cohorts, theory sections (Sec A, Sec B), and practical lab groups (P1, P2, P3, P4).
+            Manage semester batches, theory sections (Sec A, Sec B), and practical lab groups (P1, P2, P3, P4).
           </p>
         </div>
 
@@ -401,7 +401,7 @@ export function BatchesClient({
             className="inline-flex items-center justify-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-4 py-2.5 rounded-xl font-semibold text-xs shadow-xs transition-colors"
           >
             <GraduationCap className="w-4 h-4 text-indigo-600" />
-            <span>Promote Cohort / Semester</span>
+            <span>Promote Batch / Semester</span>
           </button>
           <button
             onClick={() => {
@@ -431,7 +431,7 @@ export function BatchesClient({
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search by cohort name, Sec A, Sec B, P1-P4, or academic year..."
+            placeholder="Search by batch name, Sec A, Sec B, P1-P4, or academic year..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-hidden"
@@ -457,8 +457,8 @@ export function BatchesClient({
           className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:ring-2 focus:ring-cyan-500 focus:outline-hidden"
         >
           <option value="all">All Sections & Groups</option>
-          <option value="sec_a">Section A Cohorts</option>
-          <option value="sec_b">Section B Cohorts</option>
+          <option value="sec_a">Section A Batches</option>
+          <option value="sec_b">Section B Batches</option>
           <option value="theory">Theory Sections (Whole Sec)</option>
           <option value="practical">Practical Groups (P1, P2, P3, P4)</option>
         </select>
@@ -470,7 +470,7 @@ export function BatchesClient({
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[10px]">
-                <th className="py-3 px-4">Cohort / Batch Name</th>
+                <th className="py-3 px-4">Batch Name</th>
                 <th className="py-3 px-4">Section & Division</th>
                 <th className="py-3 px-4">Programme</th>
                 <th className="py-3 px-4 text-center">Semester</th>
@@ -590,7 +590,7 @@ export function BatchesClient({
                           type="button"
                           onClick={() => handleDeleteBatch(b)}
                           className="text-xs font-semibold text-red-600 hover:text-red-800 hover:bg-red-50 border border-red-200 px-2.5 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1"
-                          title="Permanently Delete Cohort"
+                          title="Permanently Delete Batch"
                         >
                           <Trash2 className="w-3 h-3 text-red-600" />
                           <span>Delete</span>
@@ -928,7 +928,7 @@ export function BatchesClient({
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-semibold text-slate-700">
-                      Generated Cohort / Batch Name *
+                      Generated Batch Name *
                     </label>
                     <button
                       type="button"
@@ -1141,7 +1141,7 @@ export function BatchesClient({
                       onChange={(e) => setMultiPracticalStrength(Number(e.target.value))}
                       className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:outline-hidden"
                     />
-                    <span className="text-[10px] text-slate-400">For P1, P2, P3, P4 lab cohorts</span>
+                    <span className="text-[10px] text-slate-400">For P1, P2, P3, P4 lab groups</span>
                   </div>
                 </div>
 
@@ -1149,7 +1149,7 @@ export function BatchesClient({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-slate-800">
-                      Cohorts to Register ({Object.values(selectedMultiKeys).filter(Boolean).length} of 6 selected)
+                      Batches to Register ({Object.values(selectedMultiKeys).filter(Boolean).length} of 6 selected)
                     </label>
                     <button
                       type="button"
@@ -1231,7 +1231,7 @@ export function BatchesClient({
                     {isLoading ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        Generating Cohorts...
+                        Generating Batches...
                       </>
                     ) : (
                       `Generate Selected Batches (${Object.values(selectedMultiKeys).filter(Boolean).length})`

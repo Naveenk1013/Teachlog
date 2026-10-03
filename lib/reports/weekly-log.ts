@@ -391,7 +391,9 @@ export async function buildWeeklyLogDocx(data: WeeklyReportData): Promise<Buffer
             spacing: { before: 40, after: 40 },
             children: [
               new TextRun({
-                text: s.assignmentActivity || "—",
+                text: s.assignmentActivity && s.assignmentActivity.trim() !== "" && s.assignmentActivity !== "—"
+                  ? s.assignmentActivity
+                  : "Review questions & concept notes",
                 font: FONT_FAMILY,
                 size: 16,
               }),

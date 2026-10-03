@@ -18,8 +18,10 @@ import {
 } from "@/app/actions/ai-log-generator";
 import { saveWeeklySummaryAction } from "@/app/(teacher)/actions";
 import { SessionAttendanceModal } from "@/components/attendance/session-attendance-modal";
+import { RecordClassModal } from "@/components/teacher/record-class-modal";
 import {
   Calendar as CalendarIcon,
+  Plus,
   ChevronLeft,
   ChevronRight,
   Filter,
@@ -152,6 +154,10 @@ export function UnifiedLogsHub({
 
   // Attendance Modal state
   const [attendanceModalSession, setAttendanceModalSession] = useState<WeeklyLogSessionItem | null>(null);
+
+  // Record Class Modal state
+  const shouldOpenRecordFromUrl = searchParams.get("record") === "true";
+  const [showRecordModal, setShowRecordModal] = useState(shouldOpenRecordFromUrl);
 
   // Week navigation
   const navigateWeek = (direction: "prev" | "next" | "current") => {
@@ -507,6 +513,14 @@ export function UnifiedLogsHub({
           {/* Primary Action Buttons */}
           <div className="flex flex-wrap items-center gap-3">
             <button
+              onClick={() => setShowRecordModal(true)}
+              className="inline-flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-indigo-500 hover:bg-indigo-400 text-white font-extrabold text-sm shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>+ Record Class</span>
+            </button>
+
+            <button
               onClick={handleOneClickAiDocx}
               disabled={isAiGeneratingDocx}
               className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-extrabold text-sm shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
@@ -817,8 +831,18 @@ export function UnifiedLogsHub({
               ))}
             </div>
 
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Showing <span className="font-bold text-slate-900 dark:text-white">{filteredSessions.length}</span> session(s)
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowRecordModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900 border border-indigo-200 dark:border-indigo-800 font-bold text-xs transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Record Class</span>
+              </button>
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                Showing <span className="font-bold text-slate-900 dark:text-white">{filteredSessions.length}</span> session(s)
+              </div>
             </div>
           </div>
 
@@ -1545,6 +1569,20 @@ export function UnifiedLogsHub({
               )
             );
           }}
+        />
+      )}
+
+      {/* RECORD NEW CLASS MODAL */}
+      {showRecordModal && (
+        <RecordClassModal
+          isOpen={true}
+          onClose={() => setShowRecordModal(false)}
+          batches={data.batches}
+          subjects={data.subjects}
+          defaultBatchId={currentBatchId}
+          defaultSubjectId={currentSubjectId}
+          defaultDate={currentWeekStart}
+          onSuccess={() => router.refresh()}
         />
       )}
     </div>

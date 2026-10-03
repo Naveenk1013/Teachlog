@@ -20,6 +20,7 @@ import {
   ArrowRight,
   Sparkles,
   Download,
+  PenSquare,
 } from "lucide-react";
 
 interface TeacherDashboardPageProps {
@@ -102,6 +103,14 @@ export default async function TeacherDashboardPage({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          <Link
+            href={`/weekly-logs?record=true&batchId=${activeAssignment.batchId}&subjectId=${activeAssignment.subjectId}&weekStart=${weekStartStr}`}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-colors"
+          >
+            <PenSquare className="w-4 h-4" />
+            <span>+ Record Class</span>
+          </Link>
+
           <a
             href={`/api/reports/weekly-log?subjectId=${activeAssignment.subjectId}&batchId=${activeAssignment.batchId}&weekStart=${weekStartStr}`}
             download

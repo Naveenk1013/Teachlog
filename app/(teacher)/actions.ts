@@ -213,3 +213,110 @@ export async function saveWeeklySummaryAction(input: WeeklySummaryInput) {
   revalidatePath("/dashboard");
   return { success: true };
 }
+
+export async function teacherCreateClassSessionAction(params: {
+  batchId: string;
+  subjectId: string;
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
+  topicPlanned: string;
+  topicCovered?: string;
+  teachingMethod?: string;
+  assignmentActivity?: string;
+  studentsPresent: number;
+  teacherId?: string;
+}) {
+  const teacher = await getCurrentTeacherUser();
+  if (!teacher) {
+    return { success: false, error: "Unauthorized. Please sign in as faculty." };
+  }
+
+  const targetTeacherId =
+    teacher.role === "admin" && params.teacherId ? params.teacherId : teacher.id;
+
+  if (!params.batchId || !params.subjectId || !params.sessionDate || !params.startTime || !params.endTime) {
+    return { success: false, error: "Please fill in all required class session fields." };
+  }
+
+  const topicText = params.topicCovered?.trim() || params.topicPlanned?.trim();
+  if (!topicText) {
+    return { success: false, error: "Topic title is required." };
+  }
+
+  const adminClient = createAdminClient();
+
+  // 1. Fetch batch details
+  const { data: batch, error: batchErr } = await adminClient
+    .from("batches")
+    .select("current_semester, academic_year, class_strength, name")
+    .eq("id", params.batchId)
+    .single();
+
+  if (batchErr || !batch) {
+    return { success: false, error: "Selected batch not found." };
+  }
+
+  // 2. Insert into class_sessions
+  const startTimeFormatted = params.startTime.length === 5 ? `${params.startTime}:00` : params.startTime;
+  const endTimeFormatted = params.endTime.length === 5 ? `${params.endTime}:00` : params.endTime;
+
+  const { data: insertedSession, error: insertErr } = await adminClient
+    .from("class_sessions")
+    .insert({
+      batch_id: params.batchId,
+      subject_id: params.subjectId,
+      teacher_id: targetTeacherId,
+      session_date: params.sessionDate,
+      start_time: startTimeFormatted,
+      end_time: endTimeFormatted,
+      topic_planned: params.topicPlanned?.trim() || topicText,
+      topic_covered: topicText,
+      teaching_method: params.teachingMethod?.trim() || "Interactive Lecture with PPT & Visual Aids",
+      assignment_activity: params.assignmentActivity?.trim() || null,
+      students_present: params.studentsPresent ?? batch.class_strength,
+      status: "verified",
+      verified_at: new Date().toISOString(),
+      semester: batch.current_semester || 1,
+      academic_year: batch.academic_year || "2026-27",
+      logged_by: teacher.id,
+    })
+    .select("id")
+    .single();
+
+  if (insertErr || !insertedSession) {
+    return { success: false, error: "Failed to record session: " + insertErr?.message };
+  }
+
+  // 3. Optional: Sync default student attendance for this session if students exist
+  try {
+    const { data: students } = await adminClient
+      .from("students")
+      .select("id")
+      .eq("batch_id", params.batchId);
+
+    if (students && students.length > 0) {
+      const attendanceRows = students.map((st) => ({
+        session_id: insertedSession.id,
+        student_id: st.id,
+        status: "present",
+      }));
+      await adminClient.from("attendance_records").insert(attendanceRows);
+    }
+  } catch {
+    // Non-blocking
+  }
+
+  revalidatePath("/weekly-logs");
+  revalidatePath("/dashboard");
+  revalidatePath("/admin/logs");
+  revalidatePath("/cr/history");
+  revalidatePath("/attendance");
+
+  return {
+    success: true,
+    sessionId: insertedSession.id,
+    message: "Class session successfully recorded and verified by faculty!",
+  };
+}
+

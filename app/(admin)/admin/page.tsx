@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { getCurrentAppUser } from "@/lib/data/auth";
 import { getAdminOverviewStats } from "@/lib/data/admin";
+import { getDirectorDashboardData } from "@/lib/data/director";
+import { DirectorCockpit } from "@/components/director/director-cockpit";
 import {
   ShieldCheck,
   Users,
@@ -14,8 +17,27 @@ import {
   GraduationCap,
 } from "lucide-react";
 
-export default async function AdminOverviewPage() {
-  const stats = await getAdminOverviewStats();
+interface AdminOverviewPageProps {
+  searchParams?: Promise<{ view?: string }>;
+}
+
+export default async function AdminOverviewPage({ searchParams }: AdminOverviewPageProps) {
+  const resolvedParams = searchParams ? await searchParams : {};
+  const [currentUser, stats, directorData] = await Promise.all([
+    getCurrentAppUser(),
+    getAdminOverviewStats(),
+    getDirectorDashboardData(),
+  ]);
+
+  const isDirector =
+    currentUser?.email === "directorhyderabad@iihm.ac.in" ||
+    currentUser?.fullName?.toLowerCase().includes("earnest") ||
+    currentUser?.department?.toLowerCase().includes("director") ||
+    resolvedParams.view === "director";
+
+  if (isDirector && resolvedParams.view !== "system") {
+    return <DirectorCockpit data={directorData} masterAdminStats={stats} />;
+  }
 
   return (
     <div className="space-y-6">

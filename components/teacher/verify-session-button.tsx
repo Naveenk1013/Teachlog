@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { verifySessionAction } from "@/app/(teacher)/actions";
+import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 
 interface VerifySessionButtonProps {
@@ -15,6 +15,7 @@ export function VerifySessionButton({
   isVerified,
   onSuccess,
 }: VerifySessionButtonProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -30,11 +31,21 @@ export function VerifySessionButton({
   const handleVerify = () => {
     setError(null);
     startTransition(async () => {
-      const res = await verifySessionAction(sessionId);
-      if (!res.success) {
-        setError(res.error || "Failed to verify");
-      } else {
-        onSuccess?.();
+      try {
+        const resp = await fetch("/api/sessions/toggle-verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionId, status: "verified" }),
+        });
+        const res = await resp.json();
+        if (!res.success) {
+          setError(res.error || "Failed to verify");
+        } else {
+          router.refresh();
+          onSuccess?.();
+        }
+      } catch (err: any) {
+        setError(err.message || "Network error. Please try again.");
       }
     });
   };

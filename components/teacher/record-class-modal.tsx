@@ -15,7 +15,6 @@ import {
   PenSquare,
   Layers,
 } from "lucide-react";
-import { teacherCreateClassSessionAction } from "@/app/(teacher)/actions";
 
 interface RecordClassModalProps {
   isOpen: boolean;

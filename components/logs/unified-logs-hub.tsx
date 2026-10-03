@@ -8,15 +8,10 @@ import {
   WeeklyLogSessionItem,
 } from "@/lib/data/admin";
 import {
-  quickUpdateSessionAction,
-  quickToggleVerifyAction,
-} from "@/app/(admin)/admin/actions";
-import {
   aiEnrichWeekLogsAction,
   aiGenerateWeekSummaryAction,
   aiOneClickGenerateDocxAction,
 } from "@/app/actions/ai-log-generator";
-import { saveWeeklySummaryAction } from "@/app/(teacher)/actions";
 import { SessionAttendanceModal } from "@/components/attendance/session-attendance-modal";
 import { RecordClassModal } from "@/components/teacher/record-class-modal";
 import {
@@ -432,20 +427,26 @@ export function UnifiedLogsHub({
     }
 
     try {
-      const res = await saveWeeklySummaryAction({
-        teacherId: currentTeacherId || currentUserId,
-        batchId: currentBatchId,
-        subjectId: currentSubjectId,
-        weekStart: currentWeekStart,
-        syllabusCoverage,
-        practicalConducted: practicalConducted || "None conducted.",
-        assessmentConducted: assessmentConducted || "Formative evaluation conducted.",
-        slowLearners: slowLearners || "None identified.",
-        remedialAction: remedialAction || "None needed.",
-        aiDigitalTools: aiDigitalTools || "None used.",
-        industryExamples: industryExamples || "None discussed.",
-        status: status,
+      const resp = await fetch("/api/sessions/save-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teacherId: currentTeacherId || currentUserId,
+          batchId: currentBatchId,
+          subjectId: currentSubjectId,
+          weekStart: currentWeekStart,
+          syllabusCoverage,
+          practicalConducted: practicalConducted || "None conducted.",
+          assessmentConducted: assessmentConducted || "Formative evaluation conducted.",
+          slowLearners: slowLearners || "None identified.",
+          remedialAction: remedialAction || "None needed.",
+          aiDigitalTools: aiDigitalTools || "None used.",
+          industryExamples: industryExamples || "None discussed.",
+          status: status,
+        }),
       });
+
+      const res = await resp.json();
 
       if (!res.success) {
         setHubMessage({ type: "error", text: res.error || "Failed to save weekly summary." });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { verifyAllWeekSessionsAction } from "@/app/(teacher)/actions";
+import { useRouter } from "next/navigation";
 import { CheckCheck } from "lucide-react";
 
 interface VerifyAllButtonProps {
@@ -17,6 +17,7 @@ export function VerifyAllButton({
   weekStartStr,
   pendingCount,
 }: VerifyAllButtonProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -30,9 +31,20 @@ export function VerifyAllButton({
     }
     setError(null);
     startTransition(async () => {
-      const res = await verifyAllWeekSessionsAction(batchId, subjectId, weekStartStr);
-      if (!res.success) {
-        setError(res.error || "Failed to verify sessions");
+      try {
+        const resp = await fetch("/api/sessions/verify-all", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ batchId, subjectId, weekStartStr }),
+        });
+        const res = await resp.json();
+        if (!res.success) {
+          setError(res.error || "Failed to verify sessions");
+        } else {
+          router.refresh();
+        }
+      } catch (err: any) {
+        setError(err.message || "Network error. Please try again.");
       }
     });
   };

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { TeacherSessionItem, SyllabusTopicItem } from "@/lib/data/teacher";
-import { enrichClassSessionAction } from "@/app/(teacher)/actions";
 import {
   X,
   BookOpen,
@@ -52,6 +52,7 @@ export function EnrichSessionDialog({
     session.syllabusTopics.map((t) => t.id)
   );
 
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -73,19 +74,30 @@ export function EnrichSessionDialog({
     }
 
     startTransition(async () => {
-      const res = await enrichClassSessionAction({
-        sessionId: session.id,
-        topicPlanned: topicPlanned.trim(),
-        teachingMethod: teachingMethod.trim(),
-        assignmentActivity: assignmentActivity.trim(),
-        syllabusTopicIds: selectedTopicIds,
-      });
+      try {
+        const resp = await fetch("/api/sessions/enrich", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: session.id,
+            topicPlanned: topicPlanned.trim(),
+            teachingMethod: teachingMethod.trim(),
+            assignmentActivity: assignmentActivity.trim(),
+            syllabusTopicIds: selectedTopicIds,
+          }),
+        });
 
-      if (!res.success) {
-        setError(res.error || "Failed to update session");
-      } else {
-        onSuccess?.();
-        onClose();
+        const res = await resp.json();
+
+        if (!res.success) {
+          setError(res.error || "Failed to update session");
+        } else {
+          router.refresh();
+          onSuccess?.();
+          onClose();
+        }
+      } catch (err: any) {
+        setError(err.message || "Network error. Please try again.");
       }
     });
   };

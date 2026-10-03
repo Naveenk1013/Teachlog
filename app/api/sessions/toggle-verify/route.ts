@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentAppUser } from "@/lib/data/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { revalidatePath } from "next/cache";
 
 export async function POST(request: Request) {
   try {
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
       status,
       updated_at: new Date().toISOString(),
       verified_at: status === "verified" ? new Date().toISOString() : null,
+      verified_by: status === "verified" ? user.id : null,
     };
 
     const { error } = await adminClient
@@ -38,6 +40,12 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/weekly-logs");
+    revalidatePath("/reports");
+    revalidatePath("/summaries");
+    revalidatePath("/cr/history");
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

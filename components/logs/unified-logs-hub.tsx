@@ -245,15 +245,21 @@ export function UnifiedLogsHub({
     setEditSuccess(null);
 
     try {
-      const res = await quickUpdateSessionAction({
-        sessionId: editingSession.id,
-        topicCovered: editFormData.topicCovered,
-        topicPlanned: editFormData.topicCovered, // Synchronized
-        teachingMethod: editFormData.teachingMethod || undefined,
-        assignmentActivity: editFormData.assignmentActivity || undefined,
-        studentsPresent: editFormData.studentsPresent,
-        status: editFormData.status,
+      const response = await fetch("/api/sessions/quick-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: editingSession.id,
+          topicCovered: editFormData.topicCovered,
+          topicPlanned: editFormData.topicCovered, // Synchronized
+          teachingMethod: editFormData.teachingMethod || undefined,
+          assignmentActivity: editFormData.assignmentActivity || undefined,
+          studentsPresent: editFormData.studentsPresent,
+          status: editFormData.status,
+        }),
       });
+
+      const res = await response.json();
 
       if (!res.success) {
         setEditError(res.error || "Failed to update session");
@@ -291,7 +297,15 @@ export function UnifiedLogsHub({
   const handleToggleVerify = async (session: WeeklyLogSessionItem) => {
     const nextStatus = session.status === "verified" ? "submitted" : "verified";
     try {
-      const res = await quickToggleVerifyAction(session.id, nextStatus);
+      const response = await fetch("/api/sessions/toggle-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: session.id,
+          status: nextStatus,
+        }),
+      });
+      const res = await response.json();
       if (res.success) {
         setSessions((prev) =>
           prev.map((s) => (s.id === session.id ? { ...s, status: nextStatus } : s))

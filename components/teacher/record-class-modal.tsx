@@ -131,18 +131,24 @@ export function RecordClassModal({
 
     setIsSubmitting(true);
     try {
-      const res = await teacherCreateClassSessionAction({
-        batchId: selectedBatchId,
-        subjectId: selectedSubjectId,
-        sessionDate,
-        startTime,
-        endTime,
-        topicPlanned: topicPlanned.trim() || topicCovered.trim(),
-        topicCovered: topicCovered.trim() || topicPlanned.trim(),
-        teachingMethod: teachingMethod.trim(),
-        assignmentActivity: assignmentActivity.trim(),
-        studentsPresent,
+      const response = await fetch("/api/sessions/record", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          batchId: selectedBatchId,
+          subjectId: selectedSubjectId,
+          sessionDate,
+          startTime,
+          endTime,
+          topicPlanned: topicPlanned.trim() || topicCovered.trim(),
+          topicCovered: topicCovered.trim() || topicPlanned.trim(),
+          teachingMethod: teachingMethod.trim(),
+          assignmentActivity: assignmentActivity.trim(),
+          studentsPresent,
+        }),
       });
+
+      const res = await response.json();
 
       if (!res.success) {
         setErrorMsg(res.error || "Failed to record session.");

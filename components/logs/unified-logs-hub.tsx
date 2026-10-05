@@ -7,11 +7,6 @@ import {
   WeeklyLogsExplorerFilterData,
   WeeklyLogSessionItem,
 } from "@/lib/data/admin";
-import {
-  aiEnrichWeekLogsAction,
-  aiGenerateWeekSummaryAction,
-  aiOneClickGenerateDocxAction,
-} from "@/app/actions/ai-log-generator";
 import { SessionAttendanceModal } from "@/components/attendance/session-attendance-modal";
 import { RecordClassModal } from "@/components/teacher/record-class-modal";
 import {
@@ -45,6 +40,7 @@ import {
   Info,
   Building,
   RotateCcw,
+  Trash2,
 } from "lucide-react";
 
 const TEACHING_METHOD_PRESETS = [
@@ -311,19 +307,55 @@ export function UnifiedLogsHub({
     }
   };
 
+  // Delete Session Handler
+  const handleDeleteSession = async (session: WeeklyLogSessionItem) => {
+    if (
+      !confirm(
+        `Are you sure you want to delete the class session on ${session.sessionDate} (${session.subjectName})?\n\nThis will remove the topic entry and any linked attendance records. This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const resp = await fetch("/api/sessions/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: session.id }),
+      });
+      const res = await resp.json();
+      if (!res.success) {
+        alert(res.error || "Failed to delete session.");
+      } else {
+        setSessions((prev) => prev.filter((s) => s.id !== session.id));
+        setHubMessage({ type: "success", text: res.message || "Class session successfully deleted." });
+        router.refresh();
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to communicate with server.");
+    }
+  };
+
   // 1-Click AI DOCX Generation
   const handleOneClickAiDocx = async () => {
     setIsAiGeneratingDocx(true);
     setHubMessage({ type: "info", text: "⚡ AI is professionalizing logs, compiling weekly summary, and preparing your official DOCX..." });
 
     try {
-      const res = await aiOneClickGenerateDocxAction({
-        weekStart: currentWeekStart,
-        semester: selectedBatch?.currentSemester || 1,
-        batchId: currentBatchId ? currentBatchId : undefined,
-        subjectId: currentSubjectId ? currentSubjectId : undefined,
-        teacherId: currentTeacherId || (currentUserRole === "teacher" ? currentUserId : undefined),
+      const response = await fetch("/api/ai/weekly-log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "one-click-docx",
+          weekStart: currentWeekStart,
+          semester: selectedBatch?.currentSemester || 1,
+          batchId: currentBatchId ? currentBatchId : undefined,
+          subjectId: currentSubjectId ? currentSubjectId : undefined,
+          teacherId: currentTeacherId || (currentUserRole === "teacher" ? currentUserId : undefined),
+        }),
       });
+
+      const res = await response.json();
 
       if (!res.success || !res.downloadUrl) {
         setHubMessage({ type: "error", text: res.error || "Failed to generate AI weekly log DOCX." });
@@ -356,13 +388,20 @@ export function UnifiedLogsHub({
     setHubMessage({ type: "info", text: "✨ Running AI to enhance and professionalize topics, teaching methods, and student assignments..." });
 
     try {
-      const res = await aiEnrichWeekLogsAction({
-        weekStart: currentWeekStart,
-        semester: selectedBatch?.currentSemester || 1,
-        batchId: currentBatchId ? currentBatchId : undefined,
-        subjectId: currentSubjectId ? currentSubjectId : undefined,
-        teacherId: currentTeacherId || (currentUserRole === "teacher" ? currentUserId : undefined),
+      const response = await fetch("/api/ai/weekly-log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "enrich-logs",
+          weekStart: currentWeekStart,
+          semester: selectedBatch?.currentSemester || 1,
+          batchId: currentBatchId ? currentBatchId : undefined,
+          subjectId: currentSubjectId ? currentSubjectId : undefined,
+          teacherId: currentTeacherId || (currentUserRole === "teacher" ? currentUserId : undefined),
+        }),
       });
+
+      const res = await response.json();
 
       if (!res.success) {
         setHubMessage({ type: "error", text: res.error || "Failed to enrich logs via AI." });
@@ -385,13 +424,20 @@ export function UnifiedLogsHub({
     setHubMessage({ type: "info", text: "✨ AI is synthesizing all 7 weekly summary sections from your logged topics..." });
 
     try {
-      const res = await aiGenerateWeekSummaryAction({
-        weekStart: currentWeekStart,
-        semester: selectedBatch?.currentSemester || 1,
-        batchId: currentBatchId ? currentBatchId : undefined,
-        subjectId: currentSubjectId ? currentSubjectId : undefined,
-        teacherId: currentTeacherId || (currentUserRole === "teacher" ? currentUserId : undefined),
+      const response = await fetch("/api/ai/weekly-log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "generate-summary",
+          weekStart: currentWeekStart,
+          semester: selectedBatch?.currentSemester || 1,
+          batchId: currentBatchId ? currentBatchId : undefined,
+          subjectId: currentSubjectId ? currentSubjectId : undefined,
+          teacherId: currentTeacherId || (currentUserRole === "teacher" ? currentUserId : undefined),
+        }),
       });
+
+      const res = await response.json();
 
       if (!res.success || !res.summary) {
         setHubMessage({ type: "error", text: res.error || "Failed to generate weekly summary." });
@@ -939,6 +985,14 @@ export function UnifiedLogsHub({
                         title="Quick Edit Session"
                       >
                         <Edit3 className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteSession(session)}
+                        className="p-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 transition-colors"
+                        title="Delete Class Session"
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>

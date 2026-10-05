@@ -27,10 +27,36 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const targetTeacherId =
-    (currentUser.role === "admin" || currentUser.role === "hod") && reqTeacherId
-      ? reqTeacherId
-      : currentUser.id;
+  let targetTeacherId = reqTeacherId;
+  if (!targetTeacherId) {
+    if (currentUser.role === "teacher") {
+      targetTeacherId = currentUser.id;
+    } else {
+      // For Admin/Director: find the actual teacher from sessions matching this query
+      const adminClient = createAdminClient();
+      const startDate = parseISO(weekStart);
+      const endDate = addDays(startDate, 5);
+      const endStr = format(endDate, "yyyy-MM-dd");
+
+      let sessQuery = adminClient
+        .from("class_sessions")
+        .select("teacher_id")
+        .gte("session_date", weekStart)
+        .lte("session_date", endStr);
+
+      if (batchId && batchId !== "all") {
+        sessQuery = sessQuery.eq("batch_id", batchId);
+      } else if (semester) {
+        sessQuery = sessQuery.eq("semester", Number(semester));
+      }
+      if (subjectId && subjectId !== "all") {
+        sessQuery = sessQuery.eq("subject_id", subjectId);
+      }
+
+      const { data: foundSess } = await sessQuery.limit(1).maybeSingle();
+      targetTeacherId = foundSess?.teacher_id || currentUser.id;
+    }
+  }
 
   // 2. Fetch Report Data (supports semester-wise or batch-specific)
   const reportData = await getWeeklyReportData({

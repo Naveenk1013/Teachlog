@@ -55,7 +55,7 @@ export async function getWeeklyReportData(
   // 1. Fetch Teacher Profile
   const { data: teacher, error: teachErr } = await adminClient
     .from("profiles")
-    .select("full_name, department")
+    .select("full_name, department, role")
     .eq("id", params.teacherId)
     .single();
 
@@ -116,11 +116,55 @@ export async function getWeeklyReportData(
     query = query.eq("batch_id", params.batchId);
   }
 
-  if (params.subjectId && params.subjectId !== "all") {
-    query = query.eq("subject_id", params.subjectId);
-  }
+  let { data: rawSessions } = await query;
 
-  const { data: rawSessions } = await query;
+  // Fallback: If no sessions found for this specific teacher (e.g. Admin/Director viewing report, or teacherId was default),
+  // query for sessions in this batch/semester so the pre-filled table is NOT empty!
+  if (!rawSessions || rawSessions.length === 0) {
+    let fallbackQuery = adminClient
+      .from("class_sessions")
+      .select(`
+        id,
+        session_date,
+        start_time,
+        end_time,
+        topic_planned,
+        topic_covered,
+        teaching_method,
+        assignment_activity,
+        status,
+        semester,
+        teacher_id,
+        profiles:teacher_id(full_name, department),
+        subjects(name, code, semester),
+        batches(name, current_semester, academic_year)
+      `)
+      .gte("session_date", params.weekStartStr)
+      .lte("session_date", endStr)
+      .order("session_date", { ascending: true })
+      .order("start_time", { ascending: true });
+
+    if (params.semester) {
+      fallbackQuery = fallbackQuery.eq("semester", semesterNum);
+    } else if (params.batchId && params.batchId !== "all") {
+      fallbackQuery = fallbackQuery.eq("batch_id", params.batchId);
+    }
+
+    if (params.subjectId && params.subjectId !== "all") {
+      fallbackQuery = fallbackQuery.eq("subject_id", params.subjectId);
+    }
+
+    const { data: fallbackSessions } = await fallbackQuery;
+    if (fallbackSessions && fallbackSessions.length > 0) {
+      rawSessions = fallbackSessions;
+      // If original teacher was admin, update faculty display to actual teacher who took classes
+      const actualTeacher = (fallbackSessions[0] as any)?.profiles;
+      if (actualTeacher?.full_name && (teacher as any).role === "admin") {
+        teacher.full_name = actualTeacher.full_name;
+        if (actualTeacher.department) teacher.department = actualTeacher.department;
+      }
+    }
+  }
 
   // 4. Map Sessions with Section / Practical Group tags and AI Heuristic Enrichment
   const subjectNamesSet = new Set<string>();
